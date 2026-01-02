@@ -1,198 +1,213 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>심화 탐구 10차시 통합 마스터</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700;900&family=Noto+Sans+KR:wght@300;400;700;900&display=swap');
-    :root { --indigo-900: #1e1b4b; --emerald-600: #059669; }
-    body { font-family: 'Noto Sans KR', sans-serif; background: #f8fafc; margin: 0; word-break: keep-all; }
-    .serif { font-family: 'Noto Serif KR', serif; }
-    .paper-texture { background-image: url("https://www.transparenttextures.com/patterns/natural-paper.png"); }
-    .scroll-hide::-webkit-scrollbar { display: none; }
-    @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
-    .print-only { display: none; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>심화 탐구 통합 워크북 시스템</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700;900&family=Noto+Sans+KR:wght@300;400;700;900&display=swap');
+        
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans KR', sans-serif; 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact;
+            background-color: #f8fafc;
+            color: #1e293b;
+            margin: 0; word-break: keep-all;
+        }
+        
+        .serif { font-family: 'Noto Serif KR', serif; }
+        .paper-texture {
+            background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
+        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        
+        /* 인쇄 최적화 */
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; margin: 0 !important; padding: 0 !important; }
+            #root { display: block !important; }
+            .page { 
+                margin: 0 !important; 
+                padding: 20mm !important; 
+                width: 210mm !important; 
+                min-height: 297mm !important; 
+                box-shadow: none !important;
+                border: none !important;
+                page-break-after: always;
+            }
+        }
+        .print-only { display: none; }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
-<body class="bg-slate-50">
-  <div id="root"></div>
+<body class="paper-texture">
+    <div id="root"></div>
 
-  <script type="text/babel">
-    const { useState, useEffect } = React;
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        // ★★★ 선생님의 구글 앱스 스크립트 웹 앱 URL을 여기에 붙여넣으세요 ★★★
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwozNNnGBT-iJtUzLAlalEJdEn_oEDMt3IIqNBwMHPuEQhmwvUi_x1-AbXDJoydCKcX/exec";
 
-    // ★ 선생님의 구글 앱스 스크립트 주소 ★
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwozNNnGBT-iJtUzLAlalEJdEn_oEDMt3IIqNBwMHPuEQhmwvUi_x1-AbXDJoydCKcX/exec";
-
-    // 고정된 활동 데이터 (가이드 내용)
-    const activities = {
-      0: { title: "전체 일정", rows: [["1. 준비", "질문/도서 선정"], ["2. 연구", "분석/추적"], ["3. 수행", "기록/실패"], ["4. 마무리", "성찰/보고서"]] },
-      1: { title: "1차시: 질문", rows: [["계기", "어떤 사건 때문에 궁금해졌나요?"], ["최종질문", "연구 질문을 정교하게 다듬으세요."]] },
-      2: { title: "2차시: 계획", rows: [["도서수준", "전공 기초 이상의 도서인가요?"], ["목표", "어떤 결과물을 낼 것인가요?"]] },
-      3: { title: "3차시: 도서", rows: [["깊이", "새롭게 알게 된 원리는?"], ["추적", "확인한 참고문헌 리스트"]] },
-      5: { title: "5-7차시: 수행", rows: [["진짜노력", "발품 판 과정 기록"], ["시행착오", "실패와 고민의 흔적"]] },
-      8: { title: "8-10차시: 성찰", rows: [["변화", "탐구 후 나의 지적 성장"], ["다음질문", "꼬리 물기 호기심"]] }
-    };
-
-    const App = () => {
-      const [userKey, setUserKey] = useState("");
-      const [isLoggedIn, setIsLoggedIn] = useState(false);
-      const [isLoading, setIsLoading] = useState(false);
-      const [studentInfo, setStudentInfo] = useState({ school: "공주여자고등학교", name: "", gradeClass: "", major: "" });
-      const [answers, setAnswers] = useState({});
-      const [activeTab, setActiveTab] = useState(0);
-
-      useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, [isLoggedIn, activeTab]);
-
-      // 입장하기: 구글 시트에서 데이터 가져오기
-      const handleLogin = async (e) => {
-        e.preventDefault();
-        if (userKey.length < 2) return alert("코드를 입력하세요.");
-        setIsLoading(true);
-        try {
-          const res = await fetch(`${SCRIPT_URL}?userKey=${encodeURIComponent(userKey)}`);
-          const json = await res.json();
-          if (json) {
-            setStudentInfo({ school: json.school || "공주여자고등학교", name: json.name || "", gradeClass: json.gradeClass || "", major: json.major || "" });
-            // 저장된 답변 복구 (motive, question 등을 answers 객체로 변환)
-            setAnswers({
-              "1_0": json.motive, "1_1": json.question, "2_0": json.book, "3_0": json.analysis, "5_0": json.log, "8_0": json.summary
+        const App = () => {
+            const [personalCode, setPersonalCode] = useState("");
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [isLoading, setIsLoading] = useState(false);
+            const [saveStatus, setSaveStatus] = useState("");
+            const [studentInfo, setStudentInfo] = useState({ school: "공주여자고등학교", gradeClass: "", name: "", major: "" });
+            const [sessionData, setSessionData] = useState({
+                s1_motive: "", s1_question: "", s2_book: "", s2_level: "전공 기초", s2_part: "",
+                s3_depth: "", s3_trace: "", s4_keyword: "", s4_fact: "", s5_log: "", s8_summary: ""
             });
-          }
-          setIsLoggedIn(true);
-        } catch (e) { setIsLoggedIn(true); }
-        setIsLoading(false);
-      };
+            const [activeTab, setActiveTab] = useState(0);
 
-      // 저장하기: 구글 시트로 데이터 보내기
-      const handleSave = async () => {
-        setIsLoading(true);
-        const payload = {
-          userKey, ...studentInfo,
-          motive: answers["1_0"] || "", question: answers["1_1"] || "",
-          book: answers["2_0"] || "", analysis: answers["3_0"] || "",
-          log: answers["5_0"] || "", summary: answers["8_0"] || ""
+            useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, [isLoggedIn, activeTab]);
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                if (personalCode.length < 2) return alert("코드를 입력하세요.");
+                setIsLoading(true);
+                try {
+                    const res = await fetch(`${SCRIPT_URL}?userKey=${encodeURIComponent(personalCode)}`);
+                    const json = await res.json();
+                    if (json) {
+                        setStudentInfo({ school: json.school, gradeClass: json.gradeClass, name: json.name, major: json.major });
+                        setSessionData(prev => ({ ...prev, ...json }));
+                    }
+                    setIsLoggedIn(true);
+                } catch (err) { setIsLoggedIn(true); } 
+                setIsLoading(false);
+            };
+
+            const saveData = async () => {
+                setIsLoading(true);
+                try {
+                    await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ userKey: personalCode, ...studentInfo, ...sessionData }) });
+                    setSaveStatus("✅ 서버 저장 완료");
+                    setTimeout(() => setSaveStatus(""), 3000);
+                } catch (err) { alert("저장 실패"); }
+                setIsLoading(false);
+            };
+
+            const tabs = [
+                { id: 0, title: "정보 입력", icon: "user" },
+                { id: 1, title: "탐구 질문", icon: "help-circle" },
+                { id: 2, title: "도서 분석", icon: "book" },
+                { id: 5, title: "수행 기록", icon: "pen-tool" },
+                { id: 8, title: "최종 성찰", icon: "award" }
+            ];
+
+            if (!isLoggedIn) return (
+                <div className="min-h-screen flex items-center justify-center bg-slate-900 paper-texture p-6 text-center">
+                    <div className="max-w-md w-full bg-white rounded-[50px] shadow-2xl p-12 border-t-[15px] border-emerald-700 animate-in fade-in duration-700">
+                        <h1 className="serif text-4xl font-black mb-3 text-slate-800 tracking-tighter">탐구 마스터</h1>
+                        <p className="text-slate-400 text-sm mb-12 font-bold italic tracking-wide">Premium Academic System</p>
+                        <form onSubmit={handleLogin} className="space-y-6">
+                            <input type="text" value={personalCode} onChange={(e) => setPersonalCode(e.target.value)} placeholder="개인 코드 입력" className="w-full p-6 rounded-3xl bg-slate-50 border-2 border-slate-100 focus:border-emerald-600 outline-none text-center font-bold text-xl transition-all" />
+                            <button className="w-full bg-emerald-700 text-white p-6 rounded-3xl font-black text-lg shadow-lg hover:bg-emerald-800 active:scale-95 transition-all">
+                                {isLoading ? "데이터 확인 중..." : "기록장 입장하기"}
+                            </button>
+                        </form>
+                        <p className="mt-12 text-[10px] text-slate-400 font-black uppercase tracking-[0.4em]">공주여고 이수연 선생님 제작</p>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="flex flex-col min-h-screen">
+                    <header className="no-print bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 px-8 py-5 flex justify-between items-center shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-emerald-700 text-white p-2 rounded-xl font-black text-xs serif italic underline underline-offset-4">GG</div>
+                            <div>
+                                <h2 className="serif font-black text-xl text-slate-800 tracking-tighter">학술 심화 탐구 리포트</h2>
+                                <p className="text-[10px] font-black text-emerald-700 tracking-widest uppercase italic">Gongju Girls' High School Academic</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            {saveStatus && <span className="text-emerald-600 font-bold text-xs self-center animate-pulse">{saveStatus}</span>}
+                            <button onClick={saveData} className="bg-emerald-50 text-emerald-800 px-6 py-2.5 rounded-2xl text-xs font-black hover:bg-emerald-100 transition-all">
+                                {isLoading ? "저장 중..." : "서버 저장"}
+                            </button>
+                            <button onClick={() => window.print()} className="bg-slate-900 text-white px-6 py-2.5 rounded-2xl text-xs font-black hover:bg-slate-800 transition-all">인쇄하기</button>
+                        </div>
+                    </header>
+
+                    <nav className="no-print bg-white/50 border-b border-slate-100 px-8 py-3 flex gap-2 overflow-x-auto scrollbar-hide">
+                        {tabs.map(tab => (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-shrink-0 px-6 py-3 rounded-2xl font-black text-[11px] transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-emerald-700 text-white shadow-xl scale-105' : 'text-slate-400 hover:text-slate-600'}`}>
+                                <i data-lucide={tab.icon} className="w-3.5 h-3.5"></i> {tab.title}
+                            </button>
+                        ))}
+                    </nav>
+
+                    <main className="no-print flex-grow p-6 md:p-12 max-w-5xl mx-auto w-full">
+                        <div className="bg-white rounded-[50px] shadow-xl p-10 md:p-16 border border-slate-100 min-h-[650px] fade-in">
+                            {activeTab === 0 ? (
+                                <div className="space-y-12">
+                                    <h3 className="serif text-4xl font-black text-slate-800 underline decoration-emerald-200 underline-offset-8">학적 및 관심분야</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                        {[
+                                            { id: 'school', label: '학 교 명', val: studentInfo.school },
+                                            { id: 'gradeClass', label: '학 번', val: studentInfo.gradeClass },
+                                            { id: 'name', label: '성 명', val: studentInfo.name },
+                                            { id: 'major', label: '관심 분야 (전공)', val: studentInfo.major },
+                                        ].map(f => (
+                                            <div key={f.id} className="space-y-3">
+                                                <label className="text-[11px] font-black text-emerald-800 ml-1 tracking-widest uppercase">{f.label}</label>
+                                                <input value={f.val} onChange={(e)=>setStudentInfo({...studentInfo, [f.id]: e.target.value})} className="w-full p-6 rounded-3xl bg-slate-50 border-2 border-transparent focus:border-emerald-600 outline-none font-bold text-lg transition-all shadow-inner" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-10">
+                                    <div className="flex justify-between items-center border-b pb-6">
+                                        <h3 className="serif text-4xl font-black text-slate-800 italic underline decoration-emerald-200 underline-offset-8 uppercase">{tabs.find(t=>t.id===activeTab).title}</h3>
+                                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-4 py-2 rounded-full tracking-[0.2em] italic">STEP {activeTab}</span>
+                                    </div>
+                                    <textarea 
+                                        value={activeTab === 1 ? sessionData.s1_motive : activeTab === 2 ? sessionData.s2_book : activeTab === 5 ? sessionData.s5_log : sessionData.s8_summary}
+                                        onChange={(e) => {
+                                            const key = activeTab === 1 ? 's1_motive' : activeTab === 2 ? 's2_book' : activeTab === 5 ? 's5_log' : 's8_summary';
+                                            setSessionData({...sessionData, [key]: e.target.value});
+                                        }}
+                                        className="w-full h-[400px] p-10 rounded-[40px] bg-slate-50 border-none outline-none text-xl leading-relaxed focus:ring-8 focus:ring-emerald-50 transition-all shadow-inner placeholder:italic placeholder:text-slate-300"
+                                        placeholder="이곳에 탐구 내용을 정성껏 기록하세요. 당신의 고민이 기록될 때 탐구는 깊어집니다."
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </main>
+
+                    <footer className="no-print py-12 text-center text-slate-400 font-bold serif text-xs italic tracking-widest opacity-60">
+                        Designed for Academic Excellence &middot; 공주여자고등학교 이수연 선생님
+                    </footer>
+
+                    {/* 인쇄용 레이아웃 */}
+                    <div className="print-only bg-white text-slate-900">
+                        <section className="page flex flex-col items-center justify-center text-center h-[297mm] border-[20px] border-slate-900 relative">
+                            <div className="absolute top-16 left-16 text-[10px] font-black uppercase tracking-[0.5em] italic">Final Scholarly Edition</div>
+                            <h1 className="serif text-[95px] font-black leading-none mb-24 tracking-tighter">심화 탐구<br/>통합 보고서</h1>
+                            <div className="w-[550px] border-t-8 border-slate-900 pt-20 space-y-12">
+                                <div className="flex justify-between text-4xl font-black border-b pb-8"><span>소 속</span><span>{studentInfo.school}</span></div>
+                                <div className="flex justify-between text-4xl font-black border-b pb-8"><span>학 번</span><span>{studentInfo.gradeClass || "________"}</span></div>
+                                <div className="flex justify-between text-4xl font-black border-b pb-8"><span>성 명</span><span>{studentInfo.name || "________"}</span></div>
+                            </div>
+                            <p className="mt-56 serif text-2xl font-bold italic text-slate-400">Gongju Girls' High School &middot; 이수연 선생님 지도</p>
+                        </section>
+                    </div>
+                </div>
+            );
         };
-        try {
-          await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
-          alert("구글 시트에 안전하게 보관되었습니다.");
-        } catch (e) { alert("저장에 실패했습니다."); }
-        setIsLoading(false);
-      };
-
-      // 입력값 변경 관리
-      const updateAnswer = (rowIdx, val) => {
-        setAnswers({ ...answers, [`${activeTab}_${rowIdx}`]: val });
-      };
-
-      if (!isLoggedIn) return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-900 paper-texture p-6">
-          <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 text-center border-t-[12px] border-emerald-600">
-            <h1 className="serif text-3xl font-black mb-2 text-slate-800 tracking-tighter">탐구 마스터 시스템</h1>
-            <p className="text-slate-400 text-sm mb-10 font-bold italic">공주여고 이수연 선생님 제작</p>
-            <form onSubmit={handleLogin} className="space-y-6">
-              <input type="text" value={userKey} onChange={(e) => setUserKey(e.target.value)} placeholder="개인 코드 (이름+생일)" className="w-full p-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-emerald-600 outline-none text-center font-bold text-xl shadow-inner" />
-              <button className="w-full bg-emerald-600 text-white p-5 rounded-2xl font-black text-lg shadow-lg hover:bg-emerald-700 transition-all">
-                {isLoading ? "기록 불러오는 중..." : "기록장 입장하기"}
-              </button>
-            </form>
-          </div>
-        </div>
-      );
-
-      return (
-        <div className="flex flex-col min-h-screen paper-texture">
-          {/* 상단바 */}
-          <header className="no-print bg-white/90 border-b border-slate-200 px-8 py-4 flex justify-between items-center sticky top-0 z-50">
-            <div className="flex items-center gap-3">
-              <div className="bg-emerald-600 p-2 rounded-lg text-white font-black serif italic shadow-lg">GG</div>
-              <div>
-                <h2 className="serif font-black text-xl text-slate-800">학술 심화 탐구 리포트</h2>
-                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Gongju Girls' High School Academic System</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={handleSave} className="bg-emerald-50 text-emerald-700 px-6 py-2.5 rounded-xl text-xs font-black border border-emerald-100 hover:bg-emerald-100">
-                {isLoading ? "연결 중..." : "서버 저장"}
-              </button>
-              <button onClick={() => window.print()} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl text-xs font-black shadow-lg">인쇄</button>
-            </div>
-          </header>
-
-          {/* 메뉴 */}
-          <nav className="no-print bg-white/50 border-b border-slate-100 px-6 py-2 flex gap-1 overflow-x-auto scroll-hide">
-            {Object.keys(activities).map(key => (
-              <button key={key} onClick={() => setActiveTab(Number(key))} className={`flex-shrink-0 px-5 py-3 rounded-xl font-black text-[11px] transition-all ${activeTab === Number(key) ? 'bg-emerald-600 text-white shadow-xl scale-105' : 'text-slate-400 hover:bg-white'}`}>
-                {activities[key].title}
-              </button>
-            ))}
-          </nav>
-
-          {/* 메인 내용 */}
-          <main className="no-print p-6 md:p-10 max-w-5xl mx-auto w-full">
-            <div className="bg-white rounded-[50px] shadow-2xl p-8 md:p-14 border border-slate-100">
-              {activeTab === 0 ? (
-                <div className="space-y-8 animate-in fade-in">
-                  <h3 className="serif text-4xl font-black text-slate-800 underline decoration-emerald-200 underline-offset-8 decoration-8">학적 정보 입력</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6">
-                    {['school', 'gradeClass', 'name', 'major'].map(id => (
-                      <div key={id} className="space-y-2">
-                        <label className="text-[11px] font-black text-emerald-600 ml-1 tracking-widest uppercase">{id}</label>
-                        <input value={studentInfo[id]} onChange={(e) => setStudentInfo({ ...studentInfo, [id]: e.target.value })} className="w-full p-5 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-emerald-600 outline-none font-bold text-lg" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-10 animate-in slide-in-from-bottom-5">
-                  <div className="flex justify-between items-end border-b pb-6">
-                    <h3 className="serif text-4xl font-black text-slate-800 italic">{activities[activeTab].title}</h3>
-                    <span className="text-emerald-600 font-black text-[11px] uppercase tracking-widest italic shadow-sm bg-emerald-50 px-3 py-1 rounded-full">Active Step</span>
-                  </div>
-                  <div className="space-y-12">
-                    {activities[activeTab].rows.map((row, i) => (
-                      <div key={i} className="space-y-4">
-                        <label className="text-[13px] font-black text-slate-400 ml-1"># {row[0]} <span className="text-slate-300 font-medium ml-2">| {row[1]}</span></label>
-                        <textarea 
-                          value={answers[`${activeTab}_${i}`] || ""} 
-                          onChange={(e) => updateAnswer(i, e.target.value)} 
-                          className="w-full h-48 p-8 rounded-[40px] bg-slate-50 border-none outline-none font-bold text-lg leading-relaxed shadow-inner focus:ring-8 focus:ring-emerald-50 transition-all" 
-                          placeholder="탐구 내용을 정성껏 작성하세요..." 
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </main>
-
-          <footer className="no-print py-10 text-center text-slate-400 font-bold serif text-sm italic">
-            공주여자고등학교 <span className="text-emerald-600 underline decoration-emerald-100">이수연 선생님</span> 제작
-          </footer>
-
-          {/* 인쇄 화면 (인쇄 버튼 클릭 시에만 활성화) */}
-          <div className="print-only bg-white">
-            <section className="page flex flex-col items-center justify-center text-center h-[297mm] border-[20px] border-slate-900">
-              <h1 className="serif text-[80px] font-black leading-none mb-10 tracking-tighter">심화 탐구<br/>최종 리포트</h1>
-              <div className="w-[500px] border-t-8 border-slate-900 pt-16 space-y-10">
-                <div className="flex justify-between text-3xl font-black border-b pb-6"><span>소 속</span><span>{studentInfo.school}</span></div>
-                <div className="flex justify-between text-3xl font-black border-b pb-6"><span>학 번</span><span>{studentInfo.gradeClass}</span></div>
-                <div className="flex justify-between text-3xl font-black border-b pb-6"><span>성 명</span><span>{studentInfo.name}</span></div>
-              </div>
-              <p className="mt-40 serif text-xl font-bold text-slate-500">공주여자고등학교 이수연 선생님 지도</p>
-            </section>
-          </div>
-        </div>
-      );
-    };
-
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
 </body>
 </html>
