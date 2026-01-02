@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>심화 탐구 통합 마스터 시스템</title>
+    <title>심화 탐구 통합 워크북북</</titl
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -75,13 +75,13 @@
                 { id: 8, title: "최종 성찰", icon: "award" }
             ];
 
-            if (!isLoggedIn) return (
+        if (!isLoggedIn) return (
                 <div className="min-h-screen flex items-center justify-center bg-slate-900 paper-texture p-6 text-center">
                     <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 border-t-[12px] border-indigo-600 animate-in fade-in duration-500">
                         <h1 className="serif text-3xl font-black mb-2 text-slate-800">탐구 마스터 시스템</h1>
                         <p className="text-slate-400 text-sm mb-10 font-medium">나만의 고유 코드를 입력하여 탐구를 시작하세요.</p>
                         <form onSubmit={handleLogin} className="space-y-6 text-left">
-                            <input type="text" value={personalCode} onChange={(e) => setPersonalCode(e.target.value)} placeholder="예: 이름+번호 (홍길동01)" className="w-full p-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-indigo-500 outline-none text-center font-bold text-lg" />
+                            <input type="text" value={personalCode} onChange={(e) => setPersonalCode(e.target.value)} placeholder="자기만 알수 있는 개인코드를 입력하세요" className="w-full p-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-indigo-500 outline-none text-center font-bold text-lg" />
                             <button className="w-full bg-indigo-600 text-white p-5 rounded-2xl font-black shadow-lg hover:bg-indigo-700 transition-all">
                                 {isLoading ? "데이터 확인 중..." : "탐구 기록장 입장하기"}
                             </button>
