@@ -80,7 +80,6 @@
       GEMINI_MODEL: "gemini-2.5-flash",           // 선택
       STORAGE_KEY_INFO: "master_student_info_v35_server",
       STORAGE_KEY_DATA: "master_session_data_v35_server",
-      STORAGE_KEY_CODE: "master_personal_code_v35_server"
     };
 
     const App = () => {
@@ -141,7 +140,6 @@
         try {
           localStorage.setItem(CONFIG.STORAGE_KEY_INFO, JSON.stringify(studentInfo));
           localStorage.setItem(CONFIG.STORAGE_KEY_DATA, JSON.stringify(sessionData));
-          if (personalCode) localStorage.setItem(CONFIG.STORAGE_KEY_CODE, personalCode);
           setSaveStatus("✅ 로컬 백업 저장 완료!");
           setTimeout(() => setSaveStatus(""), 2500);
         } catch (e) {
@@ -153,10 +151,8 @@
         try {
           const info = localStorage.getItem(CONFIG.STORAGE_KEY_INFO);
           const data = localStorage.getItem(CONFIG.STORAGE_KEY_DATA);
-          const code = localStorage.getItem(CONFIG.STORAGE_KEY_CODE);
           if (info) setStudentInfo(JSON.parse(info));
           if (data) setSessionData(JSON.parse(data));
-          if (code) setPersonalCode(code);
         } catch (e) {
           console.warn("로컬 저장소 접근 불가(보안 설정/개인정보 보호 모드 가능)");
         }
@@ -328,11 +324,11 @@
         }
       };
 
-      const handleLogout = () => {
-        setIsLoggedIn(false);
-        setServerStatus("");
-        // 개인코드는 유지(다음 로그인 편의)
-      };
+const handleLogout = () => {
+  setIsLoggedIn(false);
+  setServerStatus("");
+  setPersonalCode(""); // ✅ 메모리에서도 제거
+};
 
       // 입력 핸들러
       const handleInput = (e) => {
@@ -501,9 +497,6 @@ ${sessionData.s8_next || "(미입력)"}
                   <h1 className="text-xl font-black tracking-tighter leading-none">심화 탐구 마스터 시스템</h1>
                   <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
                     Premium Edition v3.5 (Server Save B)
-                  </p>
-                  <p className="text-slate-500 text-[10px] font-extrabold tracking-widest mt-1">
-                    CODE: <span className="text-slate-200">{personalCode || "-"}</span>
                   </p>
                 </div>
               </div>
