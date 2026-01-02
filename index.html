@@ -130,6 +130,15 @@
       // 학생 정보
       const [studentInfo, setStudentInfo] = useState({ ...EMPTY_STUDENT });
 
+      // ===== 초기 로딩 화면 제거 =====
+useEffect(() => {
+  const loader = document.getElementById("loading-screen");
+  if (loader) {
+    loader.style.display = "none";
+  }
+}, []);
+
+
       // 1~10차시 데이터
       const [sessionData, setSessionData] = useState({ ...EMPTY_SESSION });
 
