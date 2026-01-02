@@ -13,17 +13,18 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700;900&family=Noto+Sans+KR:wght@400;700;900&display=swap');
         body { font-family: 'Noto Sans KR', sans-serif; background-color: #f8fafc; margin: 0; padding: 0; }
         .serif { font-family: 'Noto Serif KR', serif; }
+        .paper-texture { background-image: url("https://www.transparenttextures.com/patterns/natural-paper.png"); }
         @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
         .print-only { display: none; }
     </style>
 </head>
-<body>
+<body class="paper-texture">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
         
-        // 구글 앱스 스크립트 주소 (선생님 주소 그대로 적용)
+        // 선생님의 구글 앱스 스크립트 주소
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwozNNnGBT-iJtUzLAlalEJdEn_oEDMt3IIqNBwMHPuEQhmwvUi_x1-AbXDJoydCKcX/exec";
 
         const App = () => {
@@ -37,7 +38,7 @@
                 if (window.lucide) window.lucide.createIcons(); 
             }, [isLoggedIn]);
 
-            // 입장 처리
+            // 입장 및 데이터 불러오기
             const handleLogin = async (e) => {
                 e.preventDefault();
                 if (!personalCode.trim()) return alert("코드를 입력하세요.");
@@ -51,31 +52,31 @@
                     }
                     setIsLoggedIn(true);
                 } catch (err) {
-                    console.error("데이터 로드 실패:", err);
-                    setIsLoggedIn(true); // 에러가 나더라도 신규 사용자를 위해 입장은 허용
+                    setIsLoggedIn(true); // 에러가 나도 일단 입장 (신규 사용자 방지 방지)
                 }
                 setIsLoading(false);
             };
 
-            // 저장 처리
+            // 데이터 저장하기
             const saveData = async () => {
                 setIsLoading(true);
                 try {
                     const payload = { userKey: personalCode, ...studentInfo, ...sessionData };
-                    const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+                    await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
                     alert("구글 시트에 성공적으로 저장되었습니다!");
                 } catch (err) {
-                    alert("저장에 실패했습니다. 인터넷 연결을 확인하세요.");
+                    alert("저장에 실패했습니다. 인터넷을 확인하세요.");
                 }
                 setIsLoading(false);
             };
 
-            // 1. 입장 전 화면
+            // 1. 로그인 화면
             if (!isLoggedIn) {
                 return (
                     <div className="min-h-screen flex items-center justify-center bg-slate-900 p-6 text-center">
-                        <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl p-10 border-t-[15px] border-emerald-800">
-                            <h1 className="serif text-4xl font-black mb-10 text-slate-800 tracking-tighter">탐구 마스터 시스템</h1>
+                        <div className="max-w-md w-full bg-white rounded-[50px] shadow-2xl p-12 border-t-[15px] border-emerald-800 animate-in fade-in duration-500">
+                            <h1 className="serif text-4xl font-black mb-4 text-slate-800 tracking-tighter">탐구 마스터</h1>
+                            <p className="text-slate-400 text-sm mb-12 font-bold italic">공주여고 이수연 선생님 제작</p>
                             <form onSubmit={handleLogin} className="space-y-6">
                                 <input 
                                     type="text" 
@@ -88,31 +89,31 @@
                                     {isLoading ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "기록장 입장하기"}
                                 </button>
                             </form>
-                            <p className="mt-8 text-xs text-slate-400 font-bold uppercase tracking-widest italic">공주여자고등학교 이수연 선생님 제작</p>
+                            <p className="mt-10 text-[11px] text-slate-300 font-bold uppercase tracking-[0.3em]">Academic Mastery System</p>
                         </div>
                     </div>
                 );
             }
 
-            // 2. 입장 후 화면
+            // 2. 메인 기록 화면
             return (
-                <div className="min-h-screen flex flex-col bg-slate-50">
-                    <header className="no-print bg-white border-b px-8 py-5 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+                <div className="min-h-screen flex flex-col bg-slate-50 animate-in fade-in duration-700">
+                    <header className="no-print bg-white/90 border-b border-slate-200 px-8 py-5 flex justify-between items-center sticky top-0 z-50">
                         <div className="flex items-center gap-4">
-                            <h2 className="serif font-black text-2xl text-slate-800 italic tracking-tighter">학술 심화 탐구 기록장</h2>
+                            <h2 className="serif font-black text-2xl text-slate-800 italic tracking-tighter">심화 탐구 통합 리포트</h2>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-3">
                             <button onClick={saveData} className="bg-emerald-700 text-white px-8 py-3 rounded-2xl text-xs font-black shadow-lg hover:bg-emerald-800 transition-all">
-                                {isLoading ? "통신 중..." : "서버 저장"}
+                                {isLoading ? "연결 중..." : "서버 저장"}
                             </button>
-                            <button onClick={() => window.print()} className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-xs font-black">인쇄</button>
+                            <button onClick={() => window.print()} className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-xs font-black">인쇄하기</button>
                         </div>
                     </header>
                     <main className="no-print p-8 max-w-4xl mx-auto w-full">
                         <div className="bg-white rounded-[50px] shadow-xl p-12 min-h-[600px] border border-slate-100">
                             <div className="flex items-center justify-between border-b pb-6 mb-10">
                                 <h3 className="serif text-3xl font-black text-slate-800 italic uppercase">Research Entry</h3>
-                                <span className="text-[10px] font-black text-emerald-700 tracking-[0.3em] uppercase underline underline-offset-4 decoration-emerald-100">Academic Portal</span>
+                                <span className="text-[10px] font-black text-emerald-700 tracking-[0.3em] uppercase underline underline-offset-4 decoration-emerald-100 italic">Academic Portal</span>
                             </div>
                             <textarea 
                                 value={sessionData.motive}
