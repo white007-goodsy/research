@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>심화 탐구 통합 마스터 시스템</title>
+  <title>심화 탐구 통합 마스터 시스템 (서버 저장 B)</title>
 
   <!-- 라이브러리 로드: 순서 중요 -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -23,6 +23,7 @@
       background-color: #f8fafc;
       margin: 0;
       color: #0f172a;
+      word-break: keep-all;
     }
 
     .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -68,25 +69,32 @@
 
     /**
      * =========================
-     * 시스템 설정(여기만 수정)
+     * 설정(반드시 수정)
      * =========================
-     * - Gemini 사용하려면 GEMINI_API_KEY에 본인 키 입력
-     * - 모델은 기본 gemini-2.5-flash (표준 모델명) :contentReference[oaicite:1]{index=1}
+     * 1) SCRIPT_URL: Google Apps Script 웹앱 URL
+     * 2) (선택) GEMINI_API_KEY: AI 버튼 쓸 때만
      */
     const CONFIG = {
-      GEMINI_API_KEY: "",                 // 예: "AIza...."
-      GEMINI_MODEL: "gemini-2.5-flash",   // 권장 표준
-      STORAGE_KEY_INFO: "master_student_info_v35",
-      STORAGE_KEY_DATA: "master_session_data_v35",
+      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxXxqcvTnjomn4jubLUlKOg6Y28AFxW14pAEWe4BmO1tfGjddOhfAXSMi2FtAkfHbSa/exec", // 예: https://script.google.com/macros/s/XXXX/exec
+      GEMINI_API_KEY: "",                         // 선택
+      GEMINI_MODEL: "gemini-2.5-flash",           // 선택
+      STORAGE_KEY_INFO: "master_student_info_v35_server",
+      STORAGE_KEY_DATA: "master_session_data_v35_server",
+      STORAGE_KEY_CODE: "master_personal_code_v35_server"
     };
 
     const App = () => {
+      // 로그인(학생 개인코드)
+      const [personalCode, setPersonalCode] = useState("");
+      const [isLoggedIn, setIsLoggedIn] = useState(false);
+      const [serverStatus, setServerStatus] = useState("");
+
       // 학생 정보
       const [studentInfo, setStudentInfo] = useState({
         school: "", gradeClass: "", name: "", major: ""
       });
 
-      // 1~10차시 데이터(원본 + 누락분까지 UI 포함)
+      // 1~10차시 데이터(확장 포함)
       const [sessionData, setSessionData] = useState({
         // 1차시
         s1_motive: "",
@@ -128,37 +136,205 @@
       // 아이콘 갱신
       const refreshIcons = () => { if (window.lucide) window.lucide.createIcons(); };
 
-      // 초기 로드
-      useEffect(() => {
+      // 로컬 저장/불러오기
+      const saveToLocal = () => {
+        try {
+          localStorage.setItem(CONFIG.STORAGE_KEY_INFO, JSON.stringify(studentInfo));
+          localStorage.setItem(CONFIG.STORAGE_KEY_DATA, JSON.stringify(sessionData));
+          if (personalCode) localStorage.setItem(CONFIG.STORAGE_KEY_CODE, personalCode);
+          setSaveStatus("✅ 로컬 백업 저장 완료!");
+          setTimeout(() => setSaveStatus(""), 2500);
+        } catch (e) {
+          alert("로컬 저장 실패: 브라우저 설정(쿠키/로컬저장) 또는 개인정보 보호 모드를 확인해주세요.");
+        }
+      };
+
+      const loadFromLocal = () => {
         try {
           const info = localStorage.getItem(CONFIG.STORAGE_KEY_INFO);
           const data = localStorage.getItem(CONFIG.STORAGE_KEY_DATA);
+          const code = localStorage.getItem(CONFIG.STORAGE_KEY_CODE);
           if (info) setStudentInfo(JSON.parse(info));
           if (data) setSessionData(JSON.parse(data));
+          if (code) setPersonalCode(code);
         } catch (e) {
           console.warn("로컬 저장소 접근 불가(보안 설정/개인정보 보호 모드 가능)");
         }
+      };
+
+      // 초기 로드
+      useEffect(() => {
+        loadFromLocal();
+
         const loader = document.getElementById("loading-screen");
         if (loader) loader.style.display = "none";
+
         setTimeout(refreshIcons, 50);
       }, []);
 
       useEffect(() => {
         const t = setTimeout(refreshIcons, 80);
         return () => clearTimeout(t);
-      }, [activeTab, aiResult, aiLoading]);
+      }, [activeTab, aiResult, aiLoading, isLoggedIn]);
 
-      const saveToLocal = () => {
+      // ===== 서버 연동 (B: 학생별 저장) =====
+
+      // JSONP(조회) - CORS 회피
+      const loadFromServer = async (userKey) => {
+        const key = String(userKey || "").trim();
+        if (!key) throw new Error("개인코드가 비어 있습니다.");
+        if (!CONFIG.SCRIPT_URL || CONFIG.SCRIPT_URL.includes("여기에_")) {
+          throw new Error("CONFIG.SCRIPT_URL(웹앱 URL)을 먼저 입력하세요.");
+        }
+
+        const cb = `cb_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+
+          const cleanup = () => {
+            if (script && script.parentNode) script.parentNode.removeChild(script);
+            try { delete window[cb]; } catch (_) {}
+          };
+
+          const timeout = setTimeout(() => {
+            cleanup();
+            reject(new Error("서버 응답 시간 초과"));
+          }, 12000);
+
+          window[cb] = (res) => {
+            clearTimeout(timeout);
+            cleanup();
+            resolve(res);
+          };
+
+          const url = `${CONFIG.SCRIPT_URL}?userKey=${encodeURIComponent(key)}&callback=${encodeURIComponent(cb)}`;
+          script.src = url;
+          script.onerror = () => {
+            clearTimeout(timeout);
+            cleanup();
+            reject(new Error("서버 연결 실패"));
+          };
+
+          document.body.appendChild(script);
+        });
+      };
+
+      // POST(저장)
+      const saveToServer = async (userKey, payload) => {
+        const key = String(userKey || "").trim();
+        if (!key) throw new Error("개인코드가 비어 있습니다.");
+        if (!CONFIG.SCRIPT_URL || CONFIG.SCRIPT_URL.includes("여기에_")) {
+          throw new Error("CONFIG.SCRIPT_URL(웹앱 URL)을 먼저 입력하세요.");
+        }
+
+        const body = JSON.stringify({ userKey: key, ...payload });
+
+        const res = await fetch(CONFIG.SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body
+        });
+
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || "저장 실패");
+        return json;
+      };
+
+      const normalizeServerDataToState = (d) => {
+        // studentInfo
+        setStudentInfo({
+          school: d.school || "",
+          gradeClass: d.gradeClass || "",
+          name: d.name || "",
+          major: d.major || ""
+        });
+
+        // sessionData (서버에 없는 값은 기존 유지)
+        setSessionData(prev => ({
+          ...prev,
+          s1_motive: d.s1_motive ?? prev.s1_motive,
+          s1_question: d.s1_question ?? prev.s1_question,
+          s1_connection: d.s1_connection ?? prev.s1_connection,
+
+          s2_book: d.s2_book ?? prev.s2_book,
+          s2_author: d.s2_author ?? prev.s2_author,
+          s2_level: d.s2_level ?? prev.s2_level,
+          s2_part: d.s2_part ?? prev.s2_part,
+          s2_goal: d.s2_goal ?? prev.s2_goal,
+
+          s3_depth: d.s3_depth ?? prev.s3_depth,
+          s3_trace: d.s3_trace ?? prev.s3_trace,
+
+          s4_keyword: d.s4_keyword ?? prev.s4_keyword,
+          s4_fact: d.s4_fact ?? prev.s4_fact,
+
+          s5_log: d.s5_log ?? prev.s5_log,
+          s5_error: d.s5_error ?? prev.s5_error,
+          s5_result: d.s5_result ?? prev.s5_result,
+
+          s8_claim: d.s8_claim ?? prev.s8_claim,
+          s8_growth: d.s8_growth ?? prev.s8_growth,
+          s8_next: d.s8_next ?? prev.s8_next,
+          s8_summary: d.s8_summary ?? prev.s8_summary,
+        }));
+      };
+
+      const handleLogin = async () => {
         try {
-          localStorage.setItem(CONFIG.STORAGE_KEY_INFO, JSON.stringify(studentInfo));
-          localStorage.setItem(CONFIG.STORAGE_KEY_DATA, JSON.stringify(sessionData));
-          setSaveStatus("✅ 브라우저 저장 완료!");
-          setTimeout(() => setSaveStatus(""), 2500);
+          const code = String(personalCode || "").trim();
+          if (!code) {
+            setServerStatus("개인코드를 입력하세요.");
+            return;
+          }
+
+          setServerStatus("서버 확인 중...");
+          const res = await loadFromServer(code);
+
+          if (res && res.ok && res.exists && res.data) {
+            normalizeServerDataToState(res.data);
+            setServerStatus("✅ 불러오기 완료");
+          } else if (res && res.ok && !res.exists) {
+            // 신규 학생: 빈 레코드 생성
+            setServerStatus("신규 계정 생성 중...");
+            await saveToServer(code, { ...studentInfo, ...sessionData });
+            setServerStatus("✅ 신규 계정 생성 완료");
+          } else {
+            setServerStatus("서버 응답 오류");
+          }
+
+          setIsLoggedIn(true);
+          // 로컬 백업(코드 포함)
+          setTimeout(() => saveToLocal(), 150);
         } catch (e) {
-          alert("저장 실패: 브라우저 설정(쿠키/로컬저장) 또는 개인정보 보호 모드를 확인해주세요.");
+          setServerStatus(`로그인 실패: ${String(e.message || e)}`);
         }
       };
 
+      const handleSaveAll = async () => {
+        try {
+          if (!isLoggedIn) {
+            alert("먼저 개인코드로 로그인하세요.");
+            return;
+          }
+          setServerStatus("서버 저장 중...");
+          await saveToServer(personalCode, { ...studentInfo, ...sessionData });
+          setServerStatus("✅ 서버 저장 완료");
+          // 로컬도 백업
+          saveToLocal();
+          setTimeout(() => setServerStatus(""), 2500);
+        } catch (e) {
+          setServerStatus(`저장 실패: ${String(e.message || e)}`);
+        }
+      };
+
+      const handleLogout = () => {
+        setIsLoggedIn(false);
+        setServerStatus("");
+        // 개인코드는 유지(다음 로그인 편의)
+      };
+
+      // 입력 핸들러
       const handleInput = (e) => {
         const { name, value } = e.target;
         setSessionData(prev => ({ ...prev, [name]: value }));
@@ -169,18 +345,17 @@
         setStudentInfo(prev => ({ ...prev, [name]: value }));
       };
 
-      // Gemini 호출 (옵션)
+      // ===== Gemini(선택) =====
       const callGemini = async (prompt, systemInstruction) => {
         const apiKey = CONFIG.GEMINI_API_KEY?.trim();
         if (!apiKey) {
-          setAiResult("⚠️ 시스템 설정: Gemini API 키가 입력되지 않았습니다. CONFIG.GEMINI_API_KEY에 본인 키를 입력하세요.");
+          setAiResult("⚠️ 시스템 설정: Gemini API 키가 입력되지 않았습니다. (CONFIG.GEMINI_API_KEY)");
           return;
         }
 
         setAiLoading(true);
         setAiResult("");
 
-        // Gemini API generateContent (v1beta) :contentReference[oaicite:2]{index=2}
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(CONFIG.GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
         try {
@@ -197,7 +372,7 @@
           const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
 
           if (text) setAiResult(text);
-          else setAiResult("⚠️ AI 응답 형식이 예상과 다릅니다. (모델/키/권한/쿼터를 확인하세요.)");
+          else setAiResult("⚠️ AI 응답 형식이 예상과 다릅니다. (모델/키/쿼터 확인)");
         } catch (err) {
           setAiResult("⚠️ AI 연결 실패: 네트워크 또는 API 설정을 확인해주세요.");
         } finally {
@@ -259,6 +434,7 @@ ${sessionData.s8_next || "(미입력)"}
         callGemini(prompt, system);
       };
 
+      // 탭 정의
       const tabs = [
         { id: 0,  title: "정보 입력",       icon: "user",            color: "bg-slate-900" },
         { id: 11, title: "자료검색 비법",   icon: "search",          color: "bg-amber-600" },
@@ -278,6 +454,42 @@ ${sessionData.s8_next || "(미입력)"}
 
       return (
         <div className="flex flex-col min-h-screen relative">
+          {/* 로그인 오버레이 */}
+          {!isLoggedIn && (
+            <div className="no-print fixed inset-0 z-[999] bg-slate-900/90 flex items-center justify-center p-6">
+              <div className="w-full max-w-md bg-white rounded-[36px] p-10 shadow-2xl border border-white/10 fade-in">
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">개인 코드 로그인</h2>
+                <p className="text-sm text-slate-500 font-semibold mt-2">
+                  학생별 저장/불러오기를 위해 개인코드를 입력하세요.
+                </p>
+
+                <input
+                  value={personalCode}
+                  onChange={(e) => setPersonalCode(e.target.value)}
+                  className="mt-6 w-full p-5 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-lg text-center"
+                  placeholder="예: 2-1-01 또는 20101"
+                />
+
+                {serverStatus && (
+                  <div className="mt-4 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                    {serverStatus}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleLogin}
+                  className="mt-6 w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 transition-all"
+                >
+                  입장하기
+                </button>
+
+                <div className="mt-6 text-[11px] text-slate-400 font-bold leading-relaxed">
+                  * 관리자 설정: CONFIG.SCRIPT_URL을 먼저 입력해야 합니다.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 화면 UI */}
           <div className="no-print flex-grow flex flex-col">
             <header className="bg-slate-900 text-white p-5 shadow-2xl flex justify-between items-center sticky top-0 z-50">
@@ -287,26 +499,56 @@ ${sessionData.s8_next || "(미입력)"}
                 </div>
                 <div>
                   <h1 className="text-xl font-black tracking-tighter leading-none">심화 탐구 마스터 시스템</h1>
-                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Premium Edition v3.5 (Full)</p>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                    Premium Edition v3.5 (Server Save B)
+                  </p>
+                  <p className="text-slate-500 text-[10px] font-extrabold tracking-widest mt-1">
+                    CODE: <span className="text-slate-200">{personalCode || "-"}</span>
+                  </p>
                 </div>
               </div>
-              <div className="flex gap-2">
+
+              <div className="flex gap-2 items-center">
+                {serverStatus && (
+                  <span className="text-[11px] font-black bg-white/10 border border-white/10 px-3 py-2 rounded-xl">
+                    {serverStatus}
+                  </span>
+                )}
+
+                <button
+                  onClick={handleSaveAll}
+                  className="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 shadow-xl transition-all active:scale-95"
+                  title="서버 저장 + 로컬 백업"
+                >
+                  <i data-lucide="cloud-upload" className="w-3 h-3"></i> 서버 저장
+                </button>
+
                 <button
                   onClick={saveToLocal}
                   className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-white/5 shadow-inner active:scale-95"
+                  title="로컬 백업"
                 >
-                  <i data-lucide="save" className="w-3 h-3"></i> 임시 저장
+                  <i data-lucide="save" className="w-3 h-3"></i> 로컬 저장
                 </button>
+
                 <button
                   onClick={() => window.print()}
-                  className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2 rounded-xl text-xs font-black flex items-center gap-2 shadow-xl transition-all active:scale-95"
+                  className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-white/5 shadow-inner active:scale-95"
                 >
                   <i data-lucide="printer" className="w-3 h-3"></i> 워크북 출력
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  className="bg-rose-600 hover:bg-rose-500 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 shadow-xl transition-all active:scale-95"
+                  title="로그아웃(세션만 종료)"
+                >
+                  <i data-lucide="log-out" className="w-3 h-3"></i> 로그아웃
                 </button>
               </div>
             </header>
 
-            <nav className="bg-white border-b border-slate-200 flex gap-1 overflow-x-auto p-2 scrollbar-hide sticky top-[74px] z-40 shadow-sm">
+            <nav className="bg-white border-b border-slate-200 flex gap-1 overflow-x-auto p-2 scrollbar-hide sticky top-[92px] z-40 shadow-sm">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
@@ -369,7 +611,7 @@ ${sessionData.s8_next || "(미입력)"}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {[
                           { id: "school", label: "학교명", placeholder: "OO고등학교" },
-                          { id: "gradeClass", label: "학번 (학년/반/번호)", placeholder: "20101" },
+                          { id: "gradeClass", label: "학번 (학년/반/번호)", placeholder: "20101 또는 2-1-01" },
                           { id: "name", label: "성명", placeholder: "홍길동" },
                           { id: "major", label: "희망전공", placeholder: "생명공학, 경영학 등" },
                         ].map(item => (
@@ -388,7 +630,7 @@ ${sessionData.s8_next || "(미입력)"}
 
                       <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 mt-10">
                         <p className="text-xs font-bold text-indigo-700 leading-relaxed italic">
-                          ※ 입력 정보는 인쇄 시 표지/리포트에 자동 반영됩니다.
+                          ※ 입력 정보는 서버 저장 시 학생 개인코드에 귀속됩니다. 인쇄 시 표지/리포트에 자동 반영됩니다.
                         </p>
                       </div>
                     </div>
@@ -425,7 +667,7 @@ ${sessionData.s8_next || "(미입력)"}
                           </h3>
                           <ul className="text-sm font-semibold leading-relaxed list-disc pl-5 text-slate-100/90 space-y-1">
                             <li>“(핵심주제) AND (지표/변인) AND (청소년/학교/지역)”</li>
-                            <li>“(전공 키워드) ‘effect’ ‘impact’ ‘regression’ ‘survey’”</li>
+                            <li>“(전공 키워드) effect impact regression survey”</li>
                             <li>“site:go.kr (주제) 통계”, “site:ac.kr (주제) pdf”</li>
                           </ul>
                         </div>
@@ -653,7 +895,6 @@ ${sessionData.s8_next || "(미입력)"}
                           </h3>
                           <p className="text-sm text-indigo-800 leading-relaxed font-medium">
                             과거 vs 현재, 집단 A vs 집단 B를 동일 지표로 비교하여 차이를 수치로 도출.
-                            (예: 설문 평균 비교, 전후 변화율, 그룹 간 상관 비교)
                           </p>
                         </div>
 
@@ -662,8 +903,7 @@ ${sessionData.s8_next || "(미입력)"}
                             <i data-lucide="database" className="w-5 h-5"></i> ② 데이터 재해석형
                           </h3>
                           <p className="text-sm text-indigo-800 leading-relaxed font-medium">
-                            공공데이터/통계 데이터를 ‘내 가설’로 재구성해 검증.
-                            (예: 회귀/상관, 교차분석, 시계열 추세)
+                            공공데이터/통계 데이터를 ‘내 가설’로 재구성해 검증. (상관/회귀/교차분석 등)
                           </p>
                         </div>
 
@@ -673,7 +913,6 @@ ${sessionData.s8_next || "(미입력)"}
                           </h3>
                           <p className="text-sm text-indigo-800 leading-relaxed font-medium">
                             변인을 통제하고 작은 실험/시뮬레이션으로 인과를 탐색.
-                            (예: 조건 변경 실험, 간단한 A/B 테스트, 모델링)
                           </p>
                         </div>
 
@@ -682,8 +921,7 @@ ${sessionData.s8_next || "(미입력)"}
                             <i data-lucide="pen-line" className="w-5 h-5"></i> ④ 이론-사례 연결형
                           </h3>
                           <p className="text-sm text-indigo-800 leading-relaxed font-medium">
-                            전공 이론을 실제 사례(기사/판례/기업/정책)에 적용하여 논리 전개.
-                            (예: 개념틀 + 사례 분석 + 시사점)
+                            전공 이론을 실제 사례(기사/정책/기업/판례)에 적용하여 논리 전개.
                           </p>
                         </div>
                       </div>
@@ -801,7 +1039,7 @@ ${sessionData.s8_next || "(미입력)"}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-3">
-                            <Label>성장/배운 점 (내가 무엇을 새로 이해했나)</Label>
+                            <Label>성장/배운 점</Label>
                             <textarea
                               name="s8_growth"
                               value={sessionData.s8_growth}
@@ -812,7 +1050,7 @@ ${sessionData.s8_next || "(미입력)"}
                           </div>
 
                           <div className="space-y-3">
-                            <Label>후속 탐구 (다음으로 이어갈 질문/한계)</Label>
+                            <Label>후속 탐구</Label>
                             <textarea
                               name="s8_next"
                               value={sessionData.s8_next}
@@ -848,16 +1086,16 @@ ${sessionData.s8_next || "(미입력)"}
                   <button
                     onClick={handleAiConsult}
                     className="bg-slate-900 text-white px-5 py-3 rounded-2xl text-xs font-black shadow-2xl hover:bg-indigo-600 transition-all active:scale-95 flex items-center gap-2"
-                    title="현재 탭 기반 AI 코칭"
+                    title="현재 탭 기반 AI 코칭(선택 기능)"
                   >
                     <i data-lucide="sparkles" className="w-4 h-4 text-amber-400"></i> AI 코칭
                   </button>
                   <button
-                    onClick={saveToLocal}
-                    className="bg-white border border-slate-200 text-slate-700 px-5 py-3 rounded-2xl text-xs font-black shadow-xl hover:bg-slate-50 transition-all active:scale-95 flex items-center gap-2"
-                    title="브라우저에 저장"
+                    onClick={handleSaveAll}
+                    className="bg-indigo-600 text-white px-5 py-3 rounded-2xl text-xs font-black shadow-2xl hover:bg-indigo-500 transition-all active:scale-95 flex items-center gap-2"
+                    title="서버 저장 + 로컬 백업"
                   >
-                    <i data-lucide="save" className="w-4 h-4"></i> 저장
+                    <i data-lucide="cloud-upload" className="w-4 h-4"></i> 서버 저장
                   </button>
                 </div>
               </div>
