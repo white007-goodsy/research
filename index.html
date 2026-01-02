@@ -140,6 +140,54 @@
 
       const refreshIcons = () => { if (window.lucide) window.lucide.createIcons(); };
 
+// ===== 개인코드별 로컬 키 생성 =====
+   const makeLocalKey = (userKey, type) => {
+     const key = String(userKey || "").trim();
+     return `master_v35_server__${key}__${type}`;
+   };
+
+const saveToLocal = (userKey) => {
+  const key = String(userKey || "").trim();
+  if (!key) return;
+
+  try {
+    localStorage.setItem(makeLocalKey(key, "info"), JSON.stringify(studentInfo));
+    localStorage.setItem(makeLocalKey(key, "data"), JSON.stringify(sessionData));
+  } catch (e) {
+    console.warn("로컬 저장 실패");
+  }
+};
+
+const loadFromLocal = (userKey) => {
+  const key = String(userKey || "").trim();
+  if (!key) return false;
+
+  try {
+    const info = localStorage.getItem(makeLocalKey(key, "info"));
+    const data = localStorage.getItem(makeLocalKey(key, "data"));
+
+    if (info) setStudentInfo(JSON.parse(info));
+    if (data) setSessionData(JSON.parse(data));
+
+    return !!(info || data);
+  } catch (e) {
+    return false;
+  }
+};
+const resetAll = () => {
+  setStudentInfo({ school:"", gradeClass:"", name:"", major:"" });
+  setSessionData({
+    s1_motive:"", s1_question:"", s1_connection:"",
+    s2_book:"", s2_author:"", s2_level:"전공 기초(개론)", s2_part:"", s2_goal:"학술 보고서",
+    s3_depth:"", s3_trace:"",
+    s4_keyword:"", s4_fact:"",
+    s5_log:"", s5_error:"", s5_result:"",
+    s8_claim:"", s8_growth:"", s8_next:"", s8_summary:""
+  });
+};
+
+
+      
       // ✅ 로딩 화면 제거
       useEffect(() => {
         const loader = document.getElementById("loading-screen");
@@ -293,49 +341,40 @@
         }));
       };
 
-      const handleLogin = async () => {
-        try {
-          const code = String(personalCode || "").trim();
-          if (!code) {
-            setServerStatus("개인코드를 입력하세요.");
-            return;
-          }
+ const handleLogin = async () => {
+  try {
+    const code = String(personalCode || "").trim();
+    if (!code) {
+      setServerStatus("개인코드를 입력하세요.");
+      return;
+    }
 
-          // ✅ 1) 로그인 시 이전 사용자 잔여 데이터 먼저 제거(화면/메모리)
-          setServerStatus("초기화 중...");
-          clearStateToEmpty();
+    resetAll();          // ① 이전 학생 데이터 제거
+    loadFromLocal(code); // ② 해당 코드의 로컬 백업만 로드
 
-          // ✅ 2) 로컬(해당 코드) 먼저 로드해서 '즉시 표시' (원하면 주석처리 가능)
-          loadFromLocal(code);
+    setServerStatus("서버 확인 중...");
+    const res = await loadFromServer(code);
 
-          // ✅ 3) 서버에서 최신 로드
-          setServerStatus("서버 확인 중...");
-          const res = await loadFromServer(code);
+    if (res?.ok && res.exists && res.data) {
+      normalizeServerDataToState(res.data); // ③ 서버 데이터로 최종 확정
+      setServerStatus("✅ 불러오기 완료");
+    } else if (res?.ok && !res.exists) {
+      setServerStatus("신규 계정 생성 중...");
+      await saveToServer(code, { ...studentInfo, ...sessionData });
+      setServerStatus("✅ 신규 계정 생성 완료");
+    } else {
+      setServerStatus("서버 응답 오류");
+      return;
+    }
 
-          if (res && res.ok && res.exists && res.data) {
-            normalizeServerDataToState(res.data);
-            setServerStatus("✅ 서버 불러오기 완료");
-          } else if (res && res.ok && !res.exists) {
-            // 신규 학생: 빈 레코드 생성(서버에 1행 확보)
-            setServerStatus("신규 계정 생성 중...");
-            await saveToServer(code, { ...EMPTY_STUDENT, ...EMPTY_SESSION });
-            setServerStatus("✅ 신규 계정 생성 완료");
-          } else {
-            setServerStatus("서버 응답 오류");
-          }
+    setIsLoggedIn(true);
+    setTimeout(() => saveToLocal(code), 100); // ④ 개인코드별 로컬 백업
 
-          // ✅ 4) 로그인 처리(개인코드 UI에서는 지우고, 내부 메모리에만 유지)
-          setActiveUserKey(code);
-          setIsLoggedIn(true);
-          setPersonalCode(""); // 화면에 남지 않게
+  } catch (e) {
+    setServerStatus(`로그인 실패: ${String(e.message || e)}`);
+  }
+};
 
-          // ✅ 5) 로컬 백업 갱신(개인코드별)
-          setTimeout(() => saveToLocal(code), 150);
-
-        } catch (e) {
-          setServerStatus(`로그인 실패: ${String(e.message || e)}`);
-        }
-      };
 
       const handleSaveAll = async () => {
         try {
@@ -640,7 +679,7 @@ ${sessionData.s8_next || "(미입력)"}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {[
                           { id: "school", label: "학교명", placeholder: "OO고등학교" },
-                          { id: "gradeClass", label: "학번 (학년/반/번호)", placeholder: "20101 또는 2-1-01" },
+                          { id: "gradeClass", label: "학번 (학 번)", placeholder: "기억할 수 있는 본인만 아는 코드" },
                           { id: "name", label: "성명", placeholder: "홍길동" },
                           { id: "major", label: "희망전공", placeholder: "생명공학, 경영학 등" },
                         ].map(item => (
