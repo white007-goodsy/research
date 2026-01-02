@@ -25,7 +25,6 @@
       color: #0f172a;
       word-break: keep-all;
     }
-
     .scrollbar-hide::-webkit-scrollbar { display: none; }
 
     /* 로딩 화면 */
@@ -40,7 +39,10 @@
 
     /* 애니메이션 */
     .fade-in { animation: fadeIn 0.4s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
     /* 인쇄 최적화 */
     @media print {
@@ -75,96 +77,73 @@
      * 2) (선택) GEMINI_API_KEY: AI 버튼 쓸 때만
      */
     const CONFIG = {
-      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxXxqcvTnjomn4jubLUlKOg6Y28AFxW14pAEWe4BmO1tfGjddOhfAXSMi2FtAkfHbSa/exec", // 예: https://script.google.com/macros/s/XXXX/exec
-      GEMINI_API_KEY: "",                         // 선택
-      GEMINI_MODEL: "gemini-2.5-flash",           // 선택
-      STORAGE_KEY_INFO: "master_student_info_v35_server",
-      STORAGE_KEY_DATA: "master_session_data_v35_server",
+      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxXxqcvTnjomn4jubLUlKOg6Y28AFxW14pAEWe4BmO1tfGjddOhfAXSMi2FtAkfHbSa/exec",
+      GEMINI_API_KEY: "AIzaSyCkiCKxAHmtHH3OijD_qOyiaxwd-GJpqIs",
+      GEMINI_MODEL: "gemini-2.5-flash",
+      APP_VERSION: "v3.5-serverB",
+      // ✅ 개인코드별 로컬 저장 키 prefix
+      LOCAL_PREFIX: "master_serverB",
+    };
+
+    const EMPTY_STUDENT = { school: "", gradeClass: "", name: "", major: "" };
+
+    const EMPTY_SESSION = {
+      s1_motive: "",
+      s1_question: "",
+      s1_connection: "",
+
+      s2_book: "",
+      s2_author: "",
+      s2_level: "전공 기초(개론)",
+      s2_part: "",
+      s2_goal: "학술 보고서",
+
+      s3_depth: "",
+      s3_trace: "",
+
+      s4_keyword: "",
+      s4_fact: "",
+
+      s5_log: "",
+      s5_error: "",
+      s5_result: "",
+
+      s8_claim: "",
+      s8_growth: "",
+      s8_next: "",
+      s8_summary: "",
+    };
+
+    // ✅ 개인코드별 로컬스토리지 key 생성
+    const makeLocalKey = (userKey, kind) => {
+      const safe = String(userKey || "").trim();
+      return `${CONFIG.LOCAL_PREFIX}:${CONFIG.APP_VERSION}:${safe}:${kind}`;
     };
 
     const App = () => {
       // 로그인(학생 개인코드)
       const [personalCode, setPersonalCode] = useState("");
+      const [activeUserKey, setActiveUserKey] = useState(""); // ✅ 로그인 완료된 코드(메모리만)
       const [isLoggedIn, setIsLoggedIn] = useState(false);
       const [serverStatus, setServerStatus] = useState("");
 
       // 학생 정보
-      const [studentInfo, setStudentInfo] = useState({
-        school: "", gradeClass: "", name: "", major: ""
-      });
+      const [studentInfo, setStudentInfo] = useState({ ...EMPTY_STUDENT });
 
-      // 1~10차시 데이터(확장 포함)
-      const [sessionData, setSessionData] = useState({
-        // 1차시
-        s1_motive: "",
-        s1_question: "",
-        s1_connection: "",
-
-        // 2차시
-        s2_book: "",
-        s2_author: "",
-        s2_level: "전공 기초(개론)",
-        s2_part: "",
-        s2_goal: "학술 보고서",
-
-        // 3차시
-        s3_depth: "",
-        s3_trace: "",
-
-        // 4차시
-        s4_keyword: "",
-        s4_fact: "",
-
-        // 5~7차시
-        s5_log: "",
-        s5_error: "",
-        s5_result: "",
-
-        // 8~10차시
-        s8_claim: "",
-        s8_growth: "",
-        s8_next: "",
-        s8_summary: "",
-      });
+      // 1~10차시 데이터
+      const [sessionData, setSessionData] = useState({ ...EMPTY_SESSION });
 
       const [activeTab, setActiveTab] = useState(0);
       const [aiLoading, setAiLoading] = useState(false);
       const [aiResult, setAiResult] = useState("");
       const [saveStatus, setSaveStatus] = useState("");
 
-      // 아이콘 갱신
       const refreshIcons = () => { if (window.lucide) window.lucide.createIcons(); };
 
-      // 로컬 저장/불러오기
-      const saveToLocal = () => {
-        try {
-          localStorage.setItem(CONFIG.STORAGE_KEY_INFO, JSON.stringify(studentInfo));
-          localStorage.setItem(CONFIG.STORAGE_KEY_DATA, JSON.stringify(sessionData));
-          setSaveStatus("✅ 로컬 백업 저장 완료!");
-          setTimeout(() => setSaveStatus(""), 2500);
-        } catch (e) {
-          alert("로컬 저장 실패: 브라우저 설정(쿠키/로컬저장) 또는 개인정보 보호 모드를 확인해주세요.");
-        }
-      };
-
-      const loadFromLocal = () => {
-        try {
-          const info = localStorage.getItem(CONFIG.STORAGE_KEY_INFO);
-          const data = localStorage.getItem(CONFIG.STORAGE_KEY_DATA);
-          if (info) setStudentInfo(JSON.parse(info));
-          if (data) setSessionData(JSON.parse(data));
-        } catch (e) {
-          console.warn("로컬 저장소 접근 불가(보안 설정/개인정보 보호 모드 가능)");
-        }
-      };
-
-      // 초기 로드
+      // ✅ 로딩 화면 제거
       useEffect(() => {
-        loadFromLocal();
-
         const loader = document.getElementById("loading-screen");
         if (loader) loader.style.display = "none";
-
         setTimeout(refreshIcons, 50);
       }, []);
 
@@ -173,8 +152,45 @@
         return () => clearTimeout(t);
       }, [activeTab, aiResult, aiLoading, isLoggedIn]);
 
-      // ===== 서버 연동 (B: 학생별 저장) =====
+      // ===== 로컬 저장/불러오기(개인코드별) =====
+      const saveToLocal = (userKey) => {
+        const key = String(userKey || "").trim();
+        if (!key) return;
+        try {
+          localStorage.setItem(makeLocalKey(key, "info"), JSON.stringify(studentInfo));
+          localStorage.setItem(makeLocalKey(key, "data"), JSON.stringify(sessionData));
+          setSaveStatus("✅ 로컬 백업 저장 완료!");
+          setTimeout(() => setSaveStatus(""), 2500);
+        } catch (e) {
+          alert("로컬 저장 실패: 브라우저 설정(쿠키/로컬저장) 또는 개인정보 보호 모드를 확인해주세요.");
+        }
+      };
 
+      const loadFromLocal = (userKey) => {
+        const key = String(userKey || "").trim();
+        if (!key) return false;
+        try {
+          const info = localStorage.getItem(makeLocalKey(key, "info"));
+          const data = localStorage.getItem(makeLocalKey(key, "data"));
+          if (info) setStudentInfo(JSON.parse(info));
+          else setStudentInfo({ ...EMPTY_STUDENT });
+
+          if (data) setSessionData({ ...EMPTY_SESSION, ...JSON.parse(data) });
+          else setSessionData({ ...EMPTY_SESSION });
+
+          return Boolean(info || data);
+        } catch (e) {
+          console.warn("로컬 저장소 접근 불가(보안 설정/개인정보 보호 모드 가능)");
+          return false;
+        }
+      };
+
+      const clearStateToEmpty = () => {
+        setStudentInfo({ ...EMPTY_STUDENT });
+        setSessionData({ ...EMPTY_SESSION });
+      };
+
+      // ===== 서버 연동 (B: 학생별 저장) =====
       // JSONP(조회) - CORS 회피
       const loadFromServer = async (userKey) => {
         const key = String(userKey || "").trim();
@@ -183,7 +199,7 @@
           throw new Error("CONFIG.SCRIPT_URL(웹앱 URL)을 먼저 입력하세요.");
         }
 
-        const cb = `cb_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+        const cb = `cb_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
         return new Promise((resolve, reject) => {
           const script = document.createElement("script");
@@ -204,7 +220,7 @@
             resolve(res);
           };
 
-          const url = `${CONFIG.SCRIPT_URL}?userKey=${encodeURIComponent(key)}&callback=${encodeURIComponent(cb)}`;
+          const url = `${CONFIG.SCRIPT_URL}?userKey=${encodeURIComponent(key)}&callback=${encodeURIComponent(cb)}&t=${Date.now()}`;
           script.src = url;
           script.onerror = () => {
             clearTimeout(timeout);
@@ -228,17 +244,19 @@
 
         const res = await fetch(CONFIG.SCRIPT_URL, {
           method: "POST",
+          // Apps Script는 text/plain이 가장 호환이 좋습니다.
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           body
         });
 
+        // ✅ 서버가 HTML을 반환하면 여기서 JSON 파싱이 터집니다.
+        // (서버 스크립트 doPost가 반드시 JSON을 반환해야 함)
         const json = await res.json();
         if (!json.ok) throw new Error(json.error || "저장 실패");
         return json;
       };
 
       const normalizeServerDataToState = (d) => {
-        // studentInfo
         setStudentInfo({
           school: d.school || "",
           gradeClass: d.gradeClass || "",
@@ -246,7 +264,6 @@
           major: d.major || ""
         });
 
-        // sessionData (서버에 없는 값은 기존 유지)
         setSessionData(prev => ({
           ...prev,
           s1_motive: d.s1_motive ?? prev.s1_motive,
@@ -284,24 +301,37 @@
             return;
           }
 
+          // ✅ 1) 로그인 시 이전 사용자 잔여 데이터 먼저 제거(화면/메모리)
+          setServerStatus("초기화 중...");
+          clearStateToEmpty();
+
+          // ✅ 2) 로컬(해당 코드) 먼저 로드해서 '즉시 표시' (원하면 주석처리 가능)
+          loadFromLocal(code);
+
+          // ✅ 3) 서버에서 최신 로드
           setServerStatus("서버 확인 중...");
           const res = await loadFromServer(code);
 
           if (res && res.ok && res.exists && res.data) {
             normalizeServerDataToState(res.data);
-            setServerStatus("✅ 불러오기 완료");
+            setServerStatus("✅ 서버 불러오기 완료");
           } else if (res && res.ok && !res.exists) {
-            // 신규 학생: 빈 레코드 생성
+            // 신규 학생: 빈 레코드 생성(서버에 1행 확보)
             setServerStatus("신규 계정 생성 중...");
-            await saveToServer(code, { ...studentInfo, ...sessionData });
+            await saveToServer(code, { ...EMPTY_STUDENT, ...EMPTY_SESSION });
             setServerStatus("✅ 신규 계정 생성 완료");
           } else {
             setServerStatus("서버 응답 오류");
           }
 
+          // ✅ 4) 로그인 처리(개인코드 UI에서는 지우고, 내부 메모리에만 유지)
+          setActiveUserKey(code);
           setIsLoggedIn(true);
-          // 로컬 백업(코드 포함)
-          setTimeout(() => saveToLocal(), 150);
+          setPersonalCode(""); // 화면에 남지 않게
+
+          // ✅ 5) 로컬 백업 갱신(개인코드별)
+          setTimeout(() => saveToLocal(code), 150);
+
         } catch (e) {
           setServerStatus(`로그인 실패: ${String(e.message || e)}`);
         }
@@ -309,26 +339,31 @@
 
       const handleSaveAll = async () => {
         try {
-          if (!isLoggedIn) {
+          if (!isLoggedIn || !activeUserKey) {
             alert("먼저 개인코드로 로그인하세요.");
             return;
           }
           setServerStatus("서버 저장 중...");
-          await saveToServer(personalCode, { ...studentInfo, ...sessionData });
+
+          await saveToServer(activeUserKey, { ...studentInfo, ...sessionData });
+
           setServerStatus("✅ 서버 저장 완료");
-          // 로컬도 백업
-          saveToLocal();
+          saveToLocal(activeUserKey);
           setTimeout(() => setServerStatus(""), 2500);
         } catch (e) {
           setServerStatus(`저장 실패: ${String(e.message || e)}`);
         }
       };
 
-const handleLogout = () => {
-  setIsLoggedIn(false);
-  setServerStatus("");
-  setPersonalCode(""); // ✅ 메모리에서도 제거
-};
+      const handleLogout = () => {
+        // ✅ 로그아웃 시: 화면/메모리에서 개인코드 제거 + 데이터 비우기
+        setIsLoggedIn(false);
+        setServerStatus("");
+        setPersonalCode("");
+        setActiveUserKey("");
+        setAiResult("");
+        clearStateToEmpty();
+      };
 
       // 입력 핸들러
       const handleInput = (e) => {
@@ -464,6 +499,7 @@ ${sessionData.s8_next || "(미입력)"}
                   onChange={(e) => setPersonalCode(e.target.value)}
                   className="mt-6 w-full p-5 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-lg text-center"
                   placeholder="예: 2-1-01 또는 20101"
+                  autoComplete="off"
                 />
 
                 {serverStatus && (
@@ -496,7 +532,7 @@ ${sessionData.s8_next || "(미입력)"}
                 <div>
                   <h1 className="text-xl font-black tracking-tighter leading-none">심화 탐구 마스터 시스템</h1>
                   <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
-                    Premium Edition v3.5 (Server Save B)
+                    Premium Edition {CONFIG.APP_VERSION} (Server Save B)
                   </p>
                 </div>
               </div>
@@ -517,7 +553,7 @@ ${sessionData.s8_next || "(미입력)"}
                 </button>
 
                 <button
-                  onClick={saveToLocal}
+                  onClick={() => saveToLocal(activeUserKey)}
                   className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-white/5 shadow-inner active:scale-95"
                   title="로컬 백업"
                 >
