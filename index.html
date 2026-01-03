@@ -144,6 +144,7 @@
       // ✅ AI 호출을 처리하는 함수
 const handleAskAI = async ({ promptText, systemText }) => {
   if (!promptText) return alert("질문 내용을 입력해주세요.");
+  if (!isLoggedIn || !activeUserKey) return alert("먼저 개인코드로 로그인하세요.");
 
   setAiLoading(true);
   setAiResult("");
@@ -151,15 +152,22 @@ const handleAskAI = async ({ promptText, systemText }) => {
   try {
     const response = await fetch(CONFIG.SCRIPT_URL, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      headers: { "Content-Type": "application/json; charset=utf-8" },
       body: JSON.stringify({
-        action: "ask",
+        action: "askGemini",                      // ✅ 서버와 일치
+        userKey: String(activeUserKey).trim(),    // ✅ 추가 (안전)
         prompt: promptText,
         system: systemText || ""
       }),
     });
 
-    const result = await response.json();
+    const text = await response.text();
+    let result;
+    try {
+      result = JSON.parse(text);
+    } catch {
+      throw new Error("서버가 JSON이 아닌 응답을 반환: " + text.slice(0, 200));
+    }
 
     if (result.ok) {
       setAiResult(result.answer || "");
@@ -168,11 +176,12 @@ const handleAskAI = async ({ promptText, systemText }) => {
     }
   } catch (err) {
     console.error("AI Error:", err);
-    setAiResult("에러가 발생했습니다: " + err.message);
+    setAiResult("에러가 발생했습니다: " + (err?.message || String(err)));
   } finally {
     setAiLoading(false);
   }
 };
+
 
       // ✅ 인쇄용 날짜는 1회 고정
       const [issueDate] = useState(() => new Date().toLocaleDateString());
