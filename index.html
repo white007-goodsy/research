@@ -142,28 +142,27 @@
       const [saveStatus, setSaveStatus] = useState("");
 
       // ✅ AI 호출을 처리하는 함수
-const handleAskAI = async (promptText) => {
+const handleAskAI = async ({ promptText, systemText }) => {
   if (!promptText) return alert("질문 내용을 입력해주세요.");
 
   setAiLoading(true);
-  setAiResult(""); // 이전 결과 초기화
+  setAiResult("");
 
   try {
-    // 브라우저에서 Gemini로 직접 가는 게 아니라, 선생님의 GAS 주소로 보냅니다.
     const response = await fetch(CONFIG.SCRIPT_URL, {
       method: "POST",
-      // 중요: GAS의 doPost에서 구분할 수 있도록 action을 "askGemini"로 보냅니다.
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
-        action: "askGemini", 
-        prompt: promptText
+        action: "askGemini",
+        prompt: promptText,
+        system: systemText || ""
       }),
     });
 
     const result = await response.json();
 
     if (result.ok) {
-      // GAS가 보내준 답변(answer)을 상태에 저장합니다.
-      setAiResult(result.answer);
+      setAiResult(result.answer || "");
     } else {
       throw new Error(result.error || "AI 응답을 가져오지 못했습니다.");
     }
@@ -424,41 +423,7 @@ const handleAskAI = async (promptText) => {
         setStudentInfo(prev => ({ ...prev, [name]: value }));
       };
 
-      // ===== Gemini(선택) =====
-      const callGemini = async (prompt, systemInstruction) => {
-        const apiKey = CONFIG.GEMINI_API_KEY?.trim();
-        if (!apiKey) {
-          setAiResult("⚠️ 시스템 설정: Gemini API 키가 입력되지 않았습니다. (CONFIG.GEMINI_API_KEY)");
-          return;
-        }
-
-        setAiLoading(true);
-        setAiResult("");
-
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(CONFIG.GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-        try {
-          const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              systemInstruction: { parts: [{ text: systemInstruction }] }
-            })
-          });
-
-          const result = await response.json();
-          const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-          if (text) setAiResult(text);
-          else setAiResult("⚠️ AI 응답 형식이 예상과 다릅니다. (모델/키/쿼터 확인)");
-        } catch (err) {
-          setAiResult("⚠️ AI 연결 실패: 네트워크 또는 API 설정을 확인해주세요.");
-        } finally {
-          setAiLoading(false);
-        }
-      };
-
+      
       const handleAiConsult = () => {
         const system =
           "너는 고등학생의 심화 탐구를 돕는 입시·학술 코치다. 반드시 '주장-근거-설명(주근설)' 구조를 유지하고, 학생이 실제로 할 수 있는 다음 행동을 구체적으로 제시한다.";
@@ -510,7 +475,9 @@ ${sessionData.s8_next || "(미입력)"}
 형식: 체크리스트(구체적 도구/검색어/산출물 포함)`;
         }
 
-        callGemini(prompt, system);
+        handleAskAI({ promptText: prompt, systemText: system });
+
+
       };
 
       // 탭 정의
