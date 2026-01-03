@@ -26,7 +26,8 @@
       word-break: keep-all;
     }
 
-    .scrollbar-he::-webkit-scrollbar { display: none; }
+    /* ✅ 오타 수정: scrollbar-hide */
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
 
     /* 로딩 화면 */
     #loading-screen {
@@ -52,23 +53,25 @@
       body { background: white !important; margin: 0 !important; padding: 0 !important; }
       #root { display: block !important; }
       .page-break { page-break-after: always; }
-      .page { border: none !important; box-shadow: none !important; margin: 0 !important; wth: 100% !important; }
+      /* ✅ 오타 수정: width */
+      .page { border: none !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; }
     }
     .print-only { display: none; }
   </style>
 </head>
 
 <body>
+  <!-- 로딩 오버레이 -->
   <div id="loading-screen">
     <div style="width:40px;height:40px;border:4px solid #6366f1;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px;"></div>
     <p style="font-weight:900;letter-spacing:2px;">시스템 로딩 중...</p>
     <p style="font-size:12px;color:#94a3b8;margin-top:6px;">잠시만 기다려 주세요.</p>
   </div>
 
+  <!-- React Mount -->
   <div id="root"></div>
 
-  </body>
-
+  <!-- ✅ script는 body 안에 있어야 함 -->
   <script type="text/babel">
     const { useState, useEffect } = React;
 
@@ -83,7 +86,7 @@
       SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxXxqcvTnjomn4jubLUlKOg6Y28AFxW14pAEWe4BmO1tfGjddOhfAXSMi2FtAkfHbSa/exec",
       GEMINI_API_KEY: "", // ⚠️ 브라우저에 그대로 노출됩니다(권장: 비워두기)
       GEMINI_MODEL: "gemini-2.5-flash",
-      APP_VERSION: "v3.5-serverB",
+      APP_VERSION: "v3.6-serverB",
       LOCAL_PREFIX: "master_serverB",
     };
 
@@ -116,7 +119,7 @@
       s8_summary: "",
     };
 
-    // ✅ 개인코드별 로컬스토리지 key 생성(전역 1개만)
+    // ✅ 개인코드별 로컬스토리지 key 생성
     const makeLocalKey = (userKey, kind) => {
       const safe = String(userKey || "").trim();
       return `${CONFIG.LOCAL_PREFIX}:${CONFIG.APP_VERSION}:${safe}:${kind}`;
@@ -125,7 +128,7 @@
     const App = () => {
       // 로그인(학생 개인코드)
       const [personalCode, setPersonalCode] = useState("");
-      const [activeUserKey, setActiveUserKey] = useState(""); // ✅ 로그인 완료된 코드(저장용)
+      const [activeUserKey, setActiveUserKey] = useState(""); // 로그인 완료된 코드(저장용)
       const [isLoggedIn, setIsLoggedIn] = useState(false);
       const [serverStatus, setServerStatus] = useState("");
 
@@ -139,32 +142,30 @@
       const [aiResult, setAiResult] = useState("");
       const [saveStatus, setSaveStatus] = useState("");
 
+      // ✅ 인쇄용 날짜는 1회 고정
+      const [issueDate] = useState(() => new Date().toLocaleDateString());
+
       // 아이콘 갱신
       const refreshIcons = () => { if (window.lucide) window.lucide.createIcons(); };
 
-      // ✅ 로딩 화면 제거 및 아이콘 초기
+      // ✅ 로딩 화면 제거 및 아이콘 초기화
       useEffect(() => {
         const timer = setTimeout(() => {
           const loader = document.getElementById("loading-screen");
           if (loader) {
-            // 부드럽게 사라지는 효과 (선택사항)
             loader.style.transition = "opacity 0.5s ease";
             loader.style.opacity = "0";
-            
-            // 0.5초 뒤에 아예 제거
-            setTimeout(() => {
-              loader.style.display = "none";
-            }, 500);
+            setTimeout(() => { loader.style.display = "none"; }, 500);
           }
-          
-          // 아이콘 생성 확인
-          if (window.lucide) {
-            window.lucide.createIcons();
-          }
-        }, 300); // 0.3초 정도 여유를 주고 로딩창 제거
-
+          refreshIcons();
+        }, 200);
         return () => clearTimeout(timer);
       }, []);
+
+      useEffect(() => {
+        const t = setTimeout(refreshIcons, 80);
+        return () => clearTimeout(t);
+      }, [activeTab, aiResult, aiLoading, isLoggedIn]);
 
       // ===== 로컬 저장/불러오기(개인코드별) =====
       const saveToLocal = (userKey) => {
@@ -323,7 +324,7 @@
             return;
           }
 
-          // ✅ 1) 먼저 화면을 비우고, 해당 코드의 로컬 백업을 먼저 불러옴(있으면)
+          // 1) 화면 초기화 후 로컬 백업 먼저 로드
           resetAllToEmpty();
           loadFromLocal(code);
 
@@ -331,25 +332,21 @@
           const res = await loadFromServer(code);
 
           if (res?.ok && res.exists && res.data) {
-            // ✅ 2) 서버 데이터가 있으면 서버 데이터로 최종 확정
             normalizeServerDataToState(res.data);
             setServerStatus("✅ 불러오기 완료");
           } else if (res?.ok && !res.exists) {
-            // ✅ 3) 신규 학생: 빈 레코드 생성(현재 state 기반)
             setServerStatus("신규 계정 생성 중...");
             await saveToServer(code, { ...studentInfo, ...sessionData });
             setServerStatus("✅ 신규 계정 생성 완료");
           } else {
-            // 서버가 준 실제 에러 메시지를 화면에 표시합니다.
             setServerStatus(`서버 응답 오류: ${res?.error || '알 수 없는 응답'}`);
             return;
           }
 
-          // ✅ 로그인 확정
-          setActiveUserKey(code);   // ★ 이 줄이 없어서 저장이 안 되던 문제 해결
+          setActiveUserKey(code);
           setIsLoggedIn(true);
 
-          // ✅ 로컬 백업 갱신
+          // 로컬 백업 갱신
           setTimeout(() => saveToLocal(code), 100);
         } catch (e) {
           setServerStatus(`로그인 실패: ${String(e.message || e)}`);
@@ -375,7 +372,6 @@
       };
 
       const handleLogout = () => {
-        // ✅ 로그아웃: 화면/메모리에서 코드 제거 + 데이터 비우기
         setIsLoggedIn(false);
         setServerStatus("");
         setPersonalCode("");
@@ -504,6 +500,7 @@ ${sessionData.s8_next || "(미입력)"}
 
       return (
         <div className="flex flex-col min-h-screen relative">
+
           {/* 로그인 오버레이 */}
           {!isLoggedIn && (
             <div className="no-print fixed inset-0 z-[999] bg-slate-900/90 flex items-center justify-center p-6">
@@ -1128,6 +1125,7 @@ ${sessionData.s8_next || "(미입력)"}
                       </div>
                     </div>
                   )}
+
                 </div>
 
                 {/* 하단 퀵 액션 */}
@@ -1147,81 +1145,123 @@ ${sessionData.s8_next || "(미입력)"}
                     <i data-lucide="cloud-upload" className="w-4 h-4"></i> 서버 저장
                   </button>
                 </div>
+
               </div>
             </main>
           </div>
 
-{/* 인쇄 전용 레이아웃: 모든 페이지 구성 */}
-<div className="print-only bg-white text-slate-900 w-full">
-  {/* 1페이지: 표지 */}
-  <div className="page flex flex-col justify-between h-[297mm]">
-    <div className="mt-32">
-      <h1 className="text-6xl font-black tracking-tighter mb-4">심화 탐구 통합 워크북</h1>
-      <p className="text-2xl text-slate-400 font-bold tracking-widest uppercase">Research Report Portfolio</p>
-      <div className="mt-40 grid grid-cols-2 gap-12 border-t-8 border-slate-900 pt-16">
-        <div><p className="text-xs font-black text-slate-400 mb-4">SCHOOL</p><p className="text-4xl font-black">{studentInfo.school || "미입력"}</p></div>
-        <div><p className="text-xs font-black text-slate-400 mb-4">MAJOR</p><p className="text-4xl font-black">{studentInfo.major || "미입력"}</p></div>
-        <div><p className="text-xs font-black text-slate-400 mb-4">STUDENT ID / NAME</p><p className="text-4xl font-black">{studentInfo.gradeClass} {studentInfo.name || "미입력"}</p></div>
-        <div><p className="text-xs font-black text-slate-400 mb-4">ISSUE DATE</p><p className="text-4xl font-black">{new Date().toLocaleDateString()}</p></div>
-      </div>
-    </div>
-    <div className="text-right text-slate-300 font-black italic tracking-widest">MASTER SYSTEM v3.6 PREMIUM</div>
-  </div>
+          {/* ✅ 인쇄 전용 레이아웃: 반드시 return 내부에 있어야 함 */}
+          <div className="print-only bg-white text-slate-900 w-full">
+            {/* 1페이지: 표지 */}
+            <div className="page flex flex-col justify-between h-[297mm] p-10">
+              <div className="mt-32">
+                <h1 className="text-6xl font-black tracking-tighter mb-4">심화 탐구 통합 워크북</h1>
+                <p className="text-2xl text-slate-400 font-bold tracking-widest uppercase">Research Report Portfolio</p>
+                <div className="mt-40 grid grid-cols-2 gap-12 border-t-8 border-slate-900 pt-16">
+                  <div>
+                    <p className="text-xs font-black text-slate-400 mb-4">SCHOOL</p>
+                    <p className="text-4xl font-black">{studentInfo.school || "미입력"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-400 mb-4">MAJOR</p>
+                    <p className="text-4xl font-black">{studentInfo.major || "미입력"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-400 mb-4">STUDENT ID / NAME</p>
+                    <p className="text-4xl font-black">{studentInfo.gradeClass} {studentInfo.name || "미입력"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-400 mb-4">ISSUE DATE</p>
+                    <p className="text-4xl font-black">{issueDate}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right text-slate-300 font-black italic tracking-widest">
+                MASTER SYSTEM {CONFIG.APP_VERSION}
+              </div>
+            </div>
 
-  <div className="page-break"></div>
+            <div className="page-break"></div>
 
-  {/* 2페이지: 탐구 설계 상세 */}
-  <div className="page space-y-12">
-    <h2 className="text-4xl font-black border-b-4 border-slate-900 pb-4">01. 탐구 설계</h2>
-    <div className="space-y-10">
-      <div className="p-8 bg-slate-50 rounded-3xl border-2 border-slate-100">
-        <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Research Question]</h3>
-        <p className="text-3xl font-black text-indigo-900 leading-tight">{sessionData.s1_question || "탐구 질문이 입력되지 않았습니다."}</p>
-      </div>
-      <div><h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Motivation]</h3><p className="whitespace-pre-wrap leading-relaxed text-lg">{sessionData.s1_motive}</p></div>
-      <div className="grid grid-cols-2 gap-8 border-t pt-8">
-        <div><h3 className="text-xs font-black mb-2 uppercase">[Target Book]</h3><p className="font-bold text-xl">{sessionData.s2_book} ({sessionData.s2_author})</p></div>
-        <div><h3 className="text-xs font-black mb-2 uppercase">[Goal]</h3><p className="font-bold text-xl">{sessionData.s2_goal}</p></div>
-      </div>
-    </div>
-  </div>
+            {/* 2페이지: 탐구 설계 상세 */}
+            <div className="page space-y-12 p-10">
+              <h2 className="text-4xl font-black border-b-4 border-slate-900 pb-4">01. 탐구 설계</h2>
+              <div className="space-y-10">
+                <div className="p-8 bg-slate-50 rounded-3xl border-2 border-slate-100">
+                  <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Research Question]</h3>
+                  <p className="text-3xl font-black text-indigo-900 leading-tight">
+                    {sessionData.s1_question || "탐구 질문이 입력되지 않았습니다."}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Motivation]</h3>
+                  <p className="whitespace-pre-wrap leading-relaxed text-lg">{sessionData.s1_motive}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-8 border-t pt-8">
+                  <div>
+                    <h3 className="text-xs font-black mb-2 uppercase">[Target Book]</h3>
+                    <p className="font-bold text-xl">{sessionData.s2_book} {sessionData.s2_author ? `(${sessionData.s2_author})` : ""}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black mb-2 uppercase">[Goal]</h3>
+                    <p className="font-bold text-xl">{sessionData.s2_goal}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-  <div className="page-break"></div>
+            <div className="page-break"></div>
 
-  {/* 3페이지: 데이터 분석 및 수행 기록 */}
-  <div className="page space-y-12">
-    <h2 className="text-4xl font-black border-b-4 border-slate-900 pb-4">02. 데이터 및 분석 결과</h2>
-    <div className="space-y-8">
-      <div className="bg-slate-900 text-white p-10 rounded-[50px]">
-        <h3 className="text-xs font-black text-indigo-400 mb-4 uppercase">[Core Fact & Core Data]</h3>
-        <p className="text-xl leading-relaxed font-bold">{sessionData.s4_fact}</p>
-      </div>
-      <div><h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Knowledge Depth]</h3><p className="whitespace-pre-wrap text-lg leading-relaxed">{sessionData.s3_depth}</p></div>
-      <div className="p-8 bg-slate-50 rounded-3xl"><h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Interim Results]</h3><p className="font-bold text-emerald-700">{sessionData.s5_result}</p></div>
-    </div>
-  </div>
+            {/* 3페이지: 데이터 분석 및 수행 기록 */}
+            <div className="page space-y-12 p-10">
+              <h2 className="text-4xl font-black border-b-4 border-slate-900 pb-4">02. 데이터 및 분석 결과</h2>
+              <div className="space-y-8">
+                <div className="bg-slate-900 text-white p-10 rounded-[50px]">
+                  <h3 className="text-xs font-black text-indigo-400 mb-4 uppercase">[Core Fact & Core Data]</h3>
+                  <p className="text-xl leading-relaxed font-bold whitespace-pre-wrap">{sessionData.s4_fact}</p>
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Knowledge Depth]</h3>
+                  <p className="whitespace-pre-wrap text-lg leading-relaxed">{sessionData.s3_depth}</p>
+                </div>
+                <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100">
+                  <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Interim Results]</h3>
+                  <p className="font-bold text-emerald-700 whitespace-pre-wrap">{sessionData.s5_result}</p>
+                </div>
+              </div>
+            </div>
 
-  <div className="page-break"></div>
+            <div className="page-break"></div>
 
-  {/* 4페이지: 최종 성찰 및 생활기록부 */}
-  <div className="page space-y-12">
-    <h2 className="text-4xl font-black border-b-4 border-slate-900 pb-4">03. 최종 성찰 및 세특 요약</h2>
-    <div className="space-y-10">
-      <div className="p-10 bg-indigo-600 text-white rounded-[60px] shadow-xl">
-        <h3 className="text-xs font-black text-white/50 mb-4 uppercase">[Final Claim]</h3>
-        <p className="text-2xl font-black leading-tight">{sessionData.s8_claim}</p>
-      </div>
-      <div className="grid grid-cols-2 gap-10">
-        <div><h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Growth]</h3><p className="text-lg font-bold">{sessionData.s8_growth}</p></div>
-        <div><h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Next Step]</h3><p className="text-lg font-bold">{sessionData.s8_next}</p></div>
-      </div>
-      <div className="mt-12 p-12 bg-slate-50 rounded-[70px] border-4 border-double border-indigo-200">
-        <h3 className="text-2xl font-black text-indigo-900 mb-6">🎓 생활기록부 요약본 (FINAL SUMMARY)</h3>
-        <p className="text-xl font-bold leading-relaxed whitespace-pre-wrap">{sessionData.s8_summary || "입력된 최종 요약본이 없습니다."}</p>
-      </div>
-    </div>
-  </div>
-</div>
+            {/* 4페이지: 최종 성찰 및 생활기록부 */}
+            <div className="page space-y-12 p-10">
+              <h2 className="text-4xl font-black border-b-4 border-slate-900 pb-4">03. 최종 성찰 및 세특 요약</h2>
+              <div className="space-y-10">
+                <div className="p-10 bg-indigo-600 text-white rounded-[60px] shadow-xl">
+                  <h3 className="text-xs font-black text-white/50 mb-4 uppercase">[Final Claim]</h3>
+                  <p className="text-2xl font-black leading-tight whitespace-pre-wrap">{sessionData.s8_claim}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-10">
+                  <div>
+                    <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Growth]</h3>
+                    <p className="text-lg font-bold whitespace-pre-wrap">{sessionData.s8_growth}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Next Step]</h3>
+                    <p className="text-lg font-bold whitespace-pre-wrap">{sessionData.s8_next}</p>
+                  </div>
+                </div>
+                <div className="mt-12 p-12 bg-slate-50 rounded-[70px] border-4 border-double border-indigo-200">
+                  <h3 className="text-2xl font-black text-indigo-900 mb-6">🎓 생활기록부 요약본 (FINAL SUMMARY)</h3>
+                  <p className="text-xl font-bold leading-relaxed whitespace-pre-wrap">
+                    {sessionData.s8_summary || "입력된 최종 요약본이 없습니다."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
       );
     };
 
@@ -1229,4 +1269,3 @@ ${sessionData.s8_next || "(미입력)"}
   </script>
 </body>
 </html>
-
