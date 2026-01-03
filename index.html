@@ -84,7 +84,6 @@
      */
     const CONFIG = {
       SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxXxqcvTnjomn4jubLUlKOg6Y28AFxW14pAEWe4BmO1tfGjddOhfAXSMi2FtAkfHbSa/exec",
-      GEMINI_API_KEY: "", // ⚠️ 브라우저에 그대로 노출됩니다(권장: 비워두기)
       GEMINI_MODEL: "gemini-2.5-flash",
       APP_VERSION: "v3.6-serverB",
       LOCAL_PREFIX: "master_serverB",
@@ -141,6 +140,40 @@
       const [aiLoading, setAiLoading] = useState(false);
       const [aiResult, setAiResult] = useState("");
       const [saveStatus, setSaveStatus] = useState("");
+
+      // ✅ AI 호출을 처리하는 함수
+const handleAskAI = async (promptText) => {
+  if (!promptText) return alert("질문 내용을 입력해주세요.");
+
+  setAiLoading(true);
+  setAiResult(""); // 이전 결과 초기화
+
+  try {
+    // 브라우저에서 Gemini로 직접 가는 게 아니라, 선생님의 GAS 주소로 보냅니다.
+    const response = await fetch(CONFIG.SCRIPT_URL, {
+      method: "POST",
+      // 중요: GAS의 doPost에서 구분할 수 있도록 action을 "askGemini"로 보냅니다.
+      body: JSON.stringify({
+        action: "askGemini", 
+        prompt: promptText
+      }),
+    });
+
+    const result = await response.json();
+
+    if (result.ok) {
+      // GAS가 보내준 답변(answer)을 상태에 저장합니다.
+      setAiResult(result.answer);
+    } else {
+      throw new Error(result.error || "AI 응답을 가져오지 못했습니다.");
+    }
+  } catch (err) {
+    console.error("AI Error:", err);
+    setAiResult("에러가 발생했습니다: " + err.message);
+  } finally {
+    setAiLoading(false);
+  }
+};
 
       // ✅ 인쇄용 날짜는 1회 고정
       const [issueDate] = useState(() => new Date().toLocaleDateString());
