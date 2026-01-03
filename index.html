@@ -26,7 +26,7 @@
       word-break: keep-all;
     }
 
-    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-he::-webkit-scrollbar { display: none; }
 
     /* 로딩 화면 */
     #loading-screen {
@@ -52,7 +52,7 @@
       body { background: white !important; margin: 0 !important; padding: 0 !important; }
       #root { display: block !important; }
       .page-break { page-break-after: always; }
-      .page { border: none !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; }
+      .page { border: none !important; box-shadow: none !important; margin: 0 !important; wth: 100% !important; }
     }
     .print-only { display: none; }
   </style>
@@ -516,7 +516,7 @@ ${sessionData.s8_next || "(미입력)"}
                   value={personalCode}
                   onChange={(e) => setPersonalCode(e.target.value)}
                   className="mt-6 w-full p-5 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-lg text-center"
-                  placeholder="예: 2-1-01 또는 20101"
+                  placeholder="자신이 기억할 수 있는 자신만의 코드드"
                   autoComplete="off"
                 />
 
