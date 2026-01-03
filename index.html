@@ -391,7 +391,7 @@
                   onChange={e => setPersonalCode(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleLogin()}
                   className="mt-10 w-full p-6 rounded-3xl bg-slate-100 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-center text-2xl tracking-widest"
-                  placeholder="예: 20101홍길동"
+                  placeholder="자신만의 코드 입력"
                 />
                 {serverStatus && <p className="mt-4 text-xs font-bold text-indigo-600 bg-indigo-50 py-2 rounded-full">{serverStatus}</p>}
                 <button
@@ -489,7 +489,7 @@
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                         {[
                           { id: "school", label: "학교명", placeholder: "OO고등학교" },
-                          { id: "gradeClass", label: "학번", placeholder: "예: 1111(4자리)" },
+                          { id: "gradeClass", label: "학번", placeholder: "예: 20101" },
                           { id: "name", label: "성명", placeholder: "홍길동" },
                           { id: "major", label: "희망 전공", placeholder: "예: 생명공학" },
                         ].map(item => (
