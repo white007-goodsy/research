@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>심화 탐구 통합 워크북 시스템 (서버 저장 B)</title>
 
-  <!-- 라이브러리 로드: 순서 중요 -->
+  <!-- 필수 라이브러리 로드 -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -26,10 +26,9 @@
       word-break: keep-all;
     }
 
-    /* ✅ 오타 수정: scrollbar-hide */
     .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-    /* 로딩 화면 */
+    /* 로딩 화면 스타일 */
     #loading-screen {
       position: fixed; inset: 0;
       background: #0f172a; color: white;
@@ -39,24 +38,40 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* 애니메이션 */
+    /* 페이드 인 애니메이션 */
     .fade-in { animation: fadeIn 0.4s ease-out; }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* 인쇄 최적화 */
+    /* 인쇄 최적화 스타일 */
     @media print {
       .no-print { display: none !important; }
       .print-only { display: block !important; }
       body { background: white !important; margin: 0 !important; padding: 0 !important; }
       #root { display: block !important; }
       .page-break { page-break-after: always; }
-      /* ✅ 오타 수정: width */
-      .page { border: none !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; }
+      .page { 
+        border: none !important; 
+        box-shadow: none !important; 
+        margin: 0 !important; 
+        width: 100% !important;
+        min-height: 297mm; /* A4 높이 보장 */
+        padding: 20mm !important;
+      }
     }
     .print-only { display: none; }
+
+    /* 커스텀 버튼 스타일 */
+    .btn-ai-glow {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      transition: all 0.3s ease;
+    }
+    .btn-ai-glow:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.5);
+    }
   </style>
 </head>
 
@@ -64,127 +79,69 @@
   <!-- 로딩 오버레이 -->
   <div id="loading-screen">
     <div style="width:40px;height:40px;border:4px solid #6366f1;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px;"></div>
-    <p style="font-weight:900;letter-spacing:2px;">시스템 로딩 중...</p>
+    <p style="font-weight:900;letter-spacing:2px;">SYSTEM LOADING...</p>
     <p style="font-size:12px;color:#94a3b8;margin-top:6px;">잠시만 기다려 주세요.</p>
   </div>
 
-  <!-- React Mount -->
+  <!-- React Mount Point -->
   <div id="root"></div>
 
-  <!-- ✅ script는 body 안에 있어야 함 -->
   <script type="text/babel">
     const { useState, useEffect } = React;
 
     /**
      * =========================
-     * 설정(여기만 수정하면 됨)
+     * 시스템 설정 (CONFIG)
      * =========================
-     * 1) SCRIPT_URL: Google Apps Script 웹앱 URL (필수)
-     * 2) GEMINI_API_KEY: 필요할 때만 (주의: 브라우저에 노출됨)
+     * [중요] SCRIPT_URL은 본인이 배포한 GAS 웹 앱 URL로 교체해야 합니다.
      */
     const CONFIG = {
-      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxXxqcvTnjomn4jubLUlKOg6Y28AFxW14pAEWe4BmO1tfGjddOhfAXSMi2FtAkfHbSa/exec",
+      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxXxqcvTnjomn4jubLUlKOg6Y28AFxW14pAEWe4BmO1tfGjddOhfAXSMi2FtAkfHbSa/exec", 
       GEMINI_MODEL: "gemini-1.5-flash",
-      APP_VERSION: "v3.6-serverB",
+      APP_VERSION: "v3.9-FINAL",
       LOCAL_PREFIX: "master_serverB",
     };
 
     const EMPTY_STUDENT = { school: "", gradeClass: "", name: "", major: "" };
 
     const EMPTY_SESSION = {
-      s1_motive: "",
-      s1_question: "",
-      s1_connection: "",
-
-      s2_book: "",
-      s2_author: "",
-      s2_level: "전공 기초(개론)",
-      s2_part: "",
-      s2_goal: "학술 보고서",
-
-      s3_depth: "",
-      s3_trace: "",
-
-      s4_keyword: "",
-      s4_fact: "",
-
-      s5_log: "",
-      s5_error: "",
-      s5_result: "",
-
-      s8_claim: "",
-      s8_growth: "",
-      s8_next: "",
-      s8_summary: "",
+      s1_motive: "", s1_question: "", s1_connection: "",
+      s2_book: "", s2_author: "", s2_level: "전공 기초(개론)", s2_part: "", s2_goal: "학술 보고서",
+      s3_depth: "", s3_trace: "",
+      s4_keyword: "", s4_fact: "",
+      s5_log: "", s5_error: "", s5_result: "",
+      s8_claim: "", s8_growth: "", s8_next: "", s8_summary: "",
     };
 
-    // ✅ 개인코드별 로컬스토리지 key 생성
+    // 로컬 스토리지 키 생성기
     const makeLocalKey = (userKey, kind) => {
       const safe = String(userKey || "").trim();
       return `${CONFIG.LOCAL_PREFIX}:${CONFIG.APP_VERSION}:${safe}:${kind}`;
     };
 
+    // =================================================================================================
+    // Main App Component
+    // =================================================================================================
     const App = () => {
-      // 로그인(학생 개인코드)
+      // 1. 상태 관리 Hooks
       const [personalCode, setPersonalCode] = useState("");
-      const [activeUserKey, setActiveUserKey] = useState(""); // 로그인 완료된 코드(저장용)
+      const [activeUserKey, setActiveUserKey] = useState(""); 
       const [isLoggedIn, setIsLoggedIn] = useState(false);
       const [serverStatus, setServerStatus] = useState("");
 
-      // 학생 정보 / 세션 데이터
       const [studentInfo, setStudentInfo] = useState({ ...EMPTY_STUDENT });
       const [sessionData, setSessionData] = useState({ ...EMPTY_SESSION });
 
-      // UI 상태
       const [activeTab, setActiveTab] = useState(0);
       const [aiLoading, setAiLoading] = useState(false);
       const [aiResult, setAiResult] = useState("");
       const [saveStatus, setSaveStatus] = useState("");
-
-      // ✅ AI 호출을 처리하는 함수
-const handleAskAI = async ({ promptText, systemText }) => {
-  if (!promptText) return alert("질문 내용을 입력해주세요.");
-  if (!isLoggedIn || !activeUserKey) return alert("먼저 개인코드로 로그인하세요.");
-
-  setAiLoading(true);
-  setAiResult("");
-
-  try {
-    const res = await fetch(CONFIG.SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify({ userKey: key, ...payload })
-    });
-
-    const text = await response.text();
-    let result;
-    try {
-      result = JSON.parse(text);
-    } catch {
-      throw new Error("서버가 JSON이 아닌 응답을 반환: " + text.slice(0, 200));
-    }
-
-    if (result.ok) {
-      setAiResult(result.answer || "");
-    } else {
-      throw new Error(result.error || "AI 응답을 가져오지 못했습니다.");
-    }
-  } catch (err) {
-    console.error("AI Error:", err);
-    setAiResult("에러가 발생했습니다: " + (err?.message || String(err)));
-  } finally {
-    setAiLoading(false);
-  }
-};
-
-
-      // ✅ 인쇄용 날짜는 1회 고정
       const [issueDate] = useState(() => new Date().toLocaleDateString());
 
-      // 아이콘 갱신
+      // 아이콘 리프레시 (Lucide)
       const refreshIcons = () => { if (window.lucide) window.lucide.createIcons(); };
 
-      // ✅ 로딩 화면 제거 및 아이콘 초기화
+      // 초기 로딩 화면 제어
       useEffect(() => {
         const timer = setTimeout(() => {
           const loader = document.getElementById("loading-screen");
@@ -194,229 +151,199 @@ const handleAskAI = async ({ promptText, systemText }) => {
             setTimeout(() => { loader.style.display = "none"; }, 500);
           }
           refreshIcons();
-        }, 200);
+        }, 500);
         return () => clearTimeout(timer);
       }, []);
 
+      // 탭 변경 시 아이콘 갱신
       useEffect(() => {
-        const t = setTimeout(refreshIcons, 80);
+        const t = setTimeout(refreshIcons, 100);
         return () => clearTimeout(t);
       }, [activeTab, aiResult, aiLoading, isLoggedIn]);
 
-      // ===== 로컬 저장/불러오기(개인코드별) =====
-      const saveToLocal = (userKey) => {
-        const key = String(userKey || "").trim();
-        if (!key) return;
+      /**
+       * =========================
+       * 서버 및 AI 통신 함수 (에러 핸들링 강화)
+       * =========================
+       */
+      
+      const handleAskAI = async ({ promptText, systemText }) => {
+        if (!promptText) return alert("분석할 내용을 입력해주세요.");
+        if (!isLoggedIn || !activeUserKey) return alert("먼저 로그인해주세요.");
+
+        setAiLoading(true);
+        setAiResult(""); // 초기화
 
         try {
-          localStorage.setItem(makeLocalKey(key, "info"), JSON.stringify(studentInfo));
-          localStorage.setItem(makeLocalKey(key, "data"), JSON.stringify(sessionData));
-          setSaveStatus("✅ 로컬 백업 저장 완료!");
-          setTimeout(() => setSaveStatus(""), 2500);
-        } catch (e) {
-          alert("로컬 저장 실패: 브라우저 설정(쿠키/로컬저장) 또는 개인정보 보호 모드를 확인해주세요.");
-        }
-      };
+          // GAS 서버로 요청 전송
+          const response = await fetch(CONFIG.SCRIPT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              action: "askGemini",
+              prompt: promptText,
+              system: systemText,
+              userKey: activeUserKey
+            })
+          });
 
-      const loadFromLocal = (userKey) => {
-        const key = String(userKey || "").trim();
-        if (!key) return false;
-
-        try {
-          const info = localStorage.getItem(makeLocalKey(key, "info"));
-          const data = localStorage.getItem(makeLocalKey(key, "data"));
-
-          if (info) setStudentInfo(JSON.parse(info));
-          else setStudentInfo({ ...EMPTY_STUDENT });
-
-          if (data) setSessionData({ ...EMPTY_SESSION, ...JSON.parse(data) });
-          else setSessionData({ ...EMPTY_SESSION });
-
-          return Boolean(info || data);
-        } catch (e) {
-          console.warn("로컬 저장소 접근 불가(보안 설정/개인정보 보호 모드 가능)");
-          return false;
-        }
-      };
-
-      const resetAllToEmpty = () => {
-        setStudentInfo({ ...EMPTY_STUDENT });
-        setSessionData({ ...EMPTY_SESSION });
-      };
-
-      // ===== 서버 연동 (B: 학생별 저장) =====
-
-      // JSONP(조회) - CORS 회피
-      const loadFromServer = async (userKey) => {
-        const key = String(userKey || "").trim();
-        if (!key) throw new Error("개인코드가 비어 있습니다.");
-        if (!CONFIG.SCRIPT_URL || CONFIG.SCRIPT_URL.includes("여기에_")) {
-          throw new Error("CONFIG.SCRIPT_URL(웹앱 URL)을 먼저 입력하세요.");
-        }
-
-        const cb = `cb_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-
-        return new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-
-          const cleanup = () => {
-            if (script && script.parentNode) script.parentNode.removeChild(script);
-            try { delete window[cb]; } catch (_) {}
-          };
-
-          const timeout = setTimeout(() => {
-            cleanup();
-            reject(new Error("서버 응답 시간 초과"));
-          }, 12000);
-
-          window[cb] = (res) => {
-            clearTimeout(timeout);
-            cleanup();
-            resolve(res);
-          };
-
-          const url = `${CONFIG.SCRIPT_URL}?userKey=${encodeURIComponent(key)}&callback=${encodeURIComponent(cb)}&t=${Date.now()}`;
-          script.src = url;
-
-          script.onerror = () => {
-            clearTimeout(timeout);
-            cleanup();
-            reject(new Error("서버 연결 실패"));
-          };
-
-          document.body.appendChild(script);
-        });
-      };
-
-      // POST(저장)
-      const saveToServer = async (userKey, payload) => {
-        const key = String(userKey || "").trim();
-        if (!key) throw new Error("개인코드가 비어 있습니다.");
-        if (!CONFIG.SCRIPT_URL || CONFIG.SCRIPT_URL.includes("여기에_")) {
-          throw new Error("CONFIG.SCRIPT_URL(웹앱 URL)을 먼저 입력하세요.");
-        }
-
-        const body = JSON.stringify({ userKey: key, ...payload });
-
-        const res = await fetch(CONFIG.SCRIPT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body
-        });
-
-        const text = await res.text();
-        let json;
-        try {
-          json = JSON.parse(text);
-        } catch {
-          throw new Error("서버가 JSON이 아닌 응답을 반환했습니다. (배포/권한/URL 확인 필요)");
-        }
-        if (!json.ok) throw new Error(json.error || "저장 실패");
-        return json;
-      };
-
-      const normalizeServerDataToState = (d) => {
-        setStudentInfo({
-          school: d.school || "",
-          gradeClass: d.gradeClass || "",
-          name: d.name || "",
-          major: d.major || ""
-        });
-
-        setSessionData(prev => ({
-          ...prev,
-          s1_motive: d.s1_motive ?? prev.s1_motive,
-          s1_question: d.s1_question ?? prev.s1_question,
-          s1_connection: d.s1_connection ?? prev.s1_connection,
-
-          s2_book: d.s2_book ?? prev.s2_book,
-          s2_author: d.s2_author ?? prev.s2_author,
-          s2_level: d.s2_level ?? prev.s2_level,
-          s2_part: d.s2_part ?? prev.s2_part,
-          s2_goal: d.s2_goal ?? prev.s2_goal,
-
-          s3_depth: d.s3_depth ?? prev.s3_depth,
-          s3_trace: d.s3_trace ?? prev.s3_trace,
-
-          s4_keyword: d.s4_keyword ?? prev.s4_keyword,
-          s4_fact: d.s4_fact ?? prev.s4_fact,
-
-          s5_log: d.s5_log ?? prev.s5_log,
-          s5_error: d.s5_error ?? prev.s5_error,
-          s5_result: d.s5_result ?? prev.s5_result,
-
-          s8_claim: d.s8_claim ?? prev.s8_claim,
-          s8_growth: d.s8_growth ?? prev.s8_growth,
-          s8_next: d.s8_next ?? prev.s8_next,
-          s8_summary: d.s8_summary ?? prev.s8_summary,
-        }));
-      };
-
-      const handleLogin = async () => {
-        try {
-          const code = String(personalCode || "").trim();
-          if (!code) {
-            setServerStatus("개인코드를 입력하세요.");
-            return;
+          if (!response.ok) {
+            throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
           }
 
-          // 1) 화면 초기화 후 로컬 백업 먼저 로드
-          resetAllToEmpty();
-          loadFromLocal(code);
+          const text = await response.text();
+          let result;
+          try {
+            result = JSON.parse(text);
+          } catch (e) {
+            throw new Error("서버 응답이 올바른 JSON 형식이 아닙니다: " + text.substring(0, 100));
+          }
 
-          setServerStatus("서버 확인 중...");
-          const res = await loadFromServer(code);
-
-          if (res?.ok && res.exists && res.data) {
-            normalizeServerDataToState(res.data);
-            setServerStatus("✅ 불러오기 완료");
-          } else if (res?.ok && !res.exists) {
-            setServerStatus("신규 계정 생성 중...");
-            await saveToServer(code, { ...studentInfo, ...sessionData });
-            setServerStatus("✅ 신규 계정 생성 완료");
+          if (result.ok) {
+            setAiResult(result.answer || "AI가 답변을 생성하지 못했습니다.");
           } else {
-            setServerStatus(`서버 응답 오류: ${res?.error || '알 수 없는 응답'}`);
-            return;
+            // 서버에서 명시적으로 에러를 보낸 경우
+            throw new Error(result.error || "알 수 없는 AI 오류");
           }
+        } catch (err) {
+          console.error("AI Error 상세:", err);
+          
+          const errorMsg = (err.message || "").toString();
 
+          // 사용자에게 해결 방법을 안내하는 친절한 에러 메시지
+          if (errorMsg.includes("Script Properties") || errorMsg.includes("API 키") || errorMsg.includes("key")) {
+            setAiResult(
+              "⚠️ [관리자 설정 필요] Google Apps Script에 API 키가 없습니다.\n\n" +
+              "💡 해결 방법 (선생님/관리자용):\n" +
+              "1. Apps Script 에디터 접속\n" +
+              "2. 왼쪽 메뉴 [프로젝트 설정(⚙️)] 클릭\n" +
+              "3. 맨 아래 [스크립트 속성] -> [속성 추가] 클릭\n" +
+              "4. 속성: GEMINI_API_KEY / 값: (발급받은 AI 키) 입력 후 저장\n" +
+              "5. 저장 후 다시 시도해보세요."
+            );
+          } else {
+            setAiResult(`⚠️ 오류 발생: ${errorMsg}\n\n(잠시 후 다시 시도하거나, GAS 배포 URL을 확인해주세요.)`);
+          }
+        } finally {
+          setAiLoading(false);
+        }
+      };
+
+      // 탭별 맞춤 프롬프트 생성기
+      const handleAiConsult = () => {
+        const system = "너는 고등학생의 심화 탐구를 돕는 입시·학술 코치다. 반드시 '주장-근거-설명(주근설)' 구조를 유지하고, 학생이 실제로 할 수 있는 다음 행동을 구체적으로 제시한다.";
+        let prompt = "";
+
+        switch(activeTab) {
+          case 1:
+            prompt = `[희망전공: ${studentInfo.major}]\n[탐구동기: ${sessionData.s1_motive}]\n[현재질문: ${sessionData.s1_question}]\n이 질문을 더 학술적이고 고등학생 수준에서 검증 가능한 문장으로 3개 제안하고, 필요한 변인을 설명해줘.`;
+            break;
+          case 2:
+            prompt = `[도서명: ${sessionData.s2_book}]\n[목표: ${sessionData.s2_goal}]\n이 책을 활용하여 ${studentInfo.major} 전공과 관련된 심화 탐구 계획을 세워줘.`;
+            break;
+          case 3:
+            prompt = `[도서 심화 내용: ${sessionData.s3_depth}]\n이 내용을 바탕으로 교과서 개념과 연결된 학술적 원리를 설명하고 추가로 읽어볼만한 논문 키워드를 추천해줘.`;
+            break;
+          case 4:
+            prompt = `[키워드: ${sessionData.s4_keyword}]\n[핵심 데이터: ${sessionData.s4_fact}]\n이 데이터를 근거로 활용하여 탐구 보고서 본문에 들어갈 논리적인 문단(주장-근거-설명)을 3개 작성해줘.`;
+            break;
+          case 5:
+            prompt = `[수행 기록: ${sessionData.s5_log}]\n[실패 기록: ${sessionData.s5_error}]\n이 과정에서 드러난 학생의 문제해결 역량을 평가하고, 다음 단계에서 보완해야 할 점을 조언해줘.`;
+            break;
+          case 8:
+            prompt = `[최종주장: ${sessionData.s8_claim}]\n[성장점: ${sessionData.s8_growth}]\n[후속탐구: ${sessionData.s8_next}]\n이 내용을 종합하여 생활기록부 세부능력 및 특기사항(세특)에 들어갈 만한 500자 내외의 요약글을 작성해줘.`;
+            break;
+          default:
+            prompt = `현재 탐구의 ${activeTab}단계입니다. 학생이 더 깊이 있는 탐구를 위해 점검해야 할 체크리스트 5가지를 알려줘.`;
+        }
+        handleAskAI({ promptText: prompt, systemText: system });
+      };
+
+      // 데이터 불러오기 (JSONP 방식)
+      const handleLogin = async () => {
+        const code = personalCode.trim();
+        if (!code) return setServerStatus("코드를 입력하세요.");
+        setServerStatus("데이터 확인 중...");
+
+        try {
+          const cb = `cb_${Date.now()}`;
+          const res = await new Promise((resolve, reject) => {
+            window[cb] = resolve;
+            const script = document.createElement("script");
+            script.src = `${CONFIG.SCRIPT_URL}?userKey=${encodeURIComponent(code)}&callback=${cb}`;
+            script.onerror = () => reject(new Error("서버 연결 실패"));
+            document.body.appendChild(script);
+          });
+
+          if (res.ok && res.exists) {
+            const d = res.data;
+            setStudentInfo({ 
+              school: d.school || "", gradeClass: d.gradeClass || "", 
+              name: d.name || "", major: d.major || "" 
+            });
+            setSessionData({ ...EMPTY_SESSION, ...d });
+            setServerStatus("✅ 데이터 로드 완료");
+          } else if (res.ok && !res.exists) {
+            setServerStatus("🆕 신규 계정입니다");
+          } else {
+            setServerStatus("⚠️ 오류: " + res.error);
+          }
           setActiveUserKey(code);
           setIsLoggedIn(true);
-
-          // 로컬 백업 갱신
-          setTimeout(() => saveToLocal(code), 100);
+          saveToLocal(code);
         } catch (e) {
-          setServerStatus(`로그인 실패: ${String(e.message || e)}`);
+          setServerStatus("⚠️ 네트워크 오류");
+          console.error(e);
         }
       };
 
+      // 데이터 저장 (POST 방식)
       const handleSaveAll = async () => {
+        if (!isLoggedIn || !activeUserKey) return alert("로그인 상태가 아닙니다.");
+        setServerStatus("서버 저장 중...");
         try {
-          if (!isLoggedIn || !activeUserKey) {
-            alert("먼저 개인코드로 로그인하세요.");
-            return;
+          const res = await fetch(CONFIG.SCRIPT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({ userKey: activeUserKey, ...studentInfo, ...sessionData })
+          });
+          const json = await res.json();
+          if (json.ok) {
+            setServerStatus("✅ 저장 완료");
+            saveToLocal(activeUserKey);
+            setTimeout(() => setServerStatus(""), 3000);
+          } else {
+            throw new Error(json.error);
           }
-
-          setServerStatus("서버 저장 중...");
-          await saveToServer(activeUserKey, { ...studentInfo, ...sessionData });
-          setServerStatus("✅ 서버 저장 완료");
-
-          saveToLocal(activeUserKey);
-          setTimeout(() => setServerStatus(""), 2500);
         } catch (e) {
-          setServerStatus(`저장 실패: ${String(e.message || e)}`);
+          setServerStatus("⚠️ 저장 실패");
+          console.error(e);
         }
+      };
+
+      // 로컬 스토리지 헬퍼
+      const saveToLocal = (userKey) => {
+        try {
+          localStorage.setItem(makeLocalKey(userKey, "info"), JSON.stringify(studentInfo));
+          localStorage.setItem(makeLocalKey(userKey, "data"), JSON.stringify(sessionData));
+        } catch (e) {}
+      };
+      
+      const loadFromLocal = (userKey) => {
+        try {
+          const info = localStorage.getItem(makeLocalKey(userKey, "info"));
+          const data = localStorage.getItem(makeLocalKey(userKey, "data"));
+          if(info) setStudentInfo(JSON.parse(info));
+          if(data) setSessionData({...EMPTY_SESSION, ...JSON.parse(data)});
+        } catch (e) {}
       };
 
       const handleLogout = () => {
-        setIsLoggedIn(false);
+        setIsLoggedIn(false); setActiveUserKey(""); setPersonalCode("");
+        setStudentInfo({...EMPTY_STUDENT}); setSessionData({...EMPTY_SESSION}); setAiResult("");
         setServerStatus("");
-        setPersonalCode("");
-        setActiveUserKey("");
-        setAiResult("");
-        resetAllToEmpty();
       };
 
-      // 입력 핸들러
       const handleInput = (e) => {
         const { name, value } = e.target;
         setSessionData(prev => ({ ...prev, [name]: value }));
@@ -427,844 +354,591 @@ const handleAskAI = async ({ promptText, systemText }) => {
         setStudentInfo(prev => ({ ...prev, [name]: value }));
       };
 
-      
-      const handleAiConsult = () => {
-        const system =
-          "너는 고등학생의 심화 탐구를 돕는 입시·학술 코치다. 반드시 '주장-근거-설명(주근설)' 구조를 유지하고, 학생이 실제로 할 수 있는 다음 행동을 구체적으로 제시한다.";
-
-        let prompt = "";
-        if (activeTab === 1) {
-          prompt =
-`[학생 정보]
-희망전공: ${studentInfo.major || "(미입력)"}
-
-[현재 질문]
-${sessionData.s1_question || "(미입력)"}
-
-요구:
-1) 위 질문을 더 학술적이고 검증가능한 문장으로 3개 제안
-2) 각 질문마다: (변인/자료/방법/예상 산출물) 한 줄씩
-3) 고등학생 수준에서 가능한 범위로 제한`;
-        } else if (activeTab === 4) {
-          prompt =
-`[논문 트렌드 키워드]
-${sessionData.s4_keyword || "(미입력)"}
-
-[핵심 팩트/숫자]
-${sessionData.s4_fact || "(미입력)"}
-
-요구:
-1) 위 정보를 기반으로 '주장-근거-설명' 문장 5개 작성
-2) 학생이 바로 탐구보고서 본문에 붙일 수 있게 문장 완결 형태로 작성
-3) 과장 금지, 출처 표기 습관(예: 논문/기관명)을 문장에 포함`;
-        } else if (activeTab === 8) {
-          prompt =
-`[최종 주장]
-${sessionData.s8_claim || "(미입력)"}
-
-[성장/배운점]
-${sessionData.s8_growth || "(미입력)"}
-
-[후속 탐구]
-${sessionData.s8_next || "(미입력)"}
-
-요구:
-1) 생기부 세특용 300자 내외(공백 포함) 1개
-2) [동기-과정-성장] 구조
-3) '탐구 수행(5~7차시)'의 노력 흔적(자료검색/가공/오류수정 등) 1개 이상 반드시 포함`;
-        } else {
-          prompt =
-`현재 단계: 탭 ${activeTab}
-학생의 탐구를 더 학술적으로 만드는 '다음 1시간 행동 지침'을 5개 제시해줘.
-형식: 체크리스트(구체적 도구/검색어/산출물 포함)`;
-        }
-
-        handleAskAI({ promptText: prompt, systemText: system });
-
-
-      };
-
-      // 탭 정의
+      // 탭 메뉴 정의
       const tabs = [
-        { id: 0,  title: "정보 입력",       icon: "user",            color: "bg-slate-900" },
-        { id: 11, title: "자료검색 비법",   icon: "search",          color: "bg-amber-600" },
-        { id: 1,  title: "1차시: 질문",     icon: "clipboard-list",  color: "bg-indigo-600" },
-        { id: 2,  title: "2차시: 계획",     icon: "calendar",        color: "bg-indigo-600" },
-        { id: 3,  title: "3차시: 도서분석", icon: "book-open",       color: "bg-indigo-600" },
-        { id: 4,  title: "4차시: 논문분석", icon: "file-text",       color: "bg-indigo-600" },
-        { id: 13, title: "탐구 방법론",     icon: "bar-chart-3",     color: "bg-indigo-600" },
-        { id: 5,  title: "5~7차시: 수행",   icon: "wand-2",          color: "bg-indigo-600" },
-        { id: 12, title: "AI 가이드",       icon: "shield-check",    color: "bg-rose-600" },
-        { id: 8,  title: "8~10차시: 성찰",  icon: "graduation-cap",  color: "bg-indigo-600" },
+        { id: 0, title: "정보 입력", icon: "user", color: "bg-slate-900" },
+        { id: 11, title: "자료검색 비법", icon: "search", color: "bg-amber-600" },
+        { id: 1, title: "1차시: 질문", icon: "clipboard-list", color: "bg-indigo-600" },
+        { id: 2, title: "2차시: 계획", icon: "calendar", color: "bg-indigo-600" },
+        { id: 3, title: "3차시: 도서분석", icon: "book-open", color: "bg-indigo-600" },
+        { id: 4, title: "4차시: 논문분석", icon: "file-text", color: "bg-indigo-600" },
+        { id: 13, title: "탐구 방법론", icon: "bar-chart-3", color: "bg-indigo-600" },
+        { id: 5, title: "5~7차시: 수행", icon: "wand-2", color: "bg-indigo-600" },
+        { id: 12, title: "AI 가이드", icon: "shield-check", color: "bg-rose-600" },
+        { id: 8, title: "8~10차시: 성찰", icon: "graduation-cap", color: "bg-indigo-600" },
       ];
 
       const Label = ({ children }) => (
-        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">{children}</label>
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{children}</label>
       );
 
       return (
         <div className="flex flex-col min-h-screen relative">
-
-          {/* 로그인 오버레이 */}
+          
+          {/* 로그인 화면 (isLoggedIn false일 때) */}
           {!isLoggedIn && (
-            <div className="no-print fixed inset-0 z-[999] bg-slate-900/90 flex items-center justify-center p-6">
-              <div className="w-full max-w-md bg-white rounded-[36px] p-10 shadow-2xl border border-white/10 fade-in">
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight">개인 코드 로그인</h2>
-                <p className="text-sm text-slate-500 font-semibold mt-2">
-                  학생별 저장/불러오기를 위해 개인코드를 입력하세요.
-                </p>
-
+            <div className="fixed inset-0 z-[1000] bg-slate-900 flex items-center justify-center p-6">
+              <div className="w-full max-w-md bg-white rounded-[48px] p-12 shadow-2xl fade-in text-center border border-white/20">
+                <div className="mb-8 flex justify-center">
+                  <div className="bg-indigo-100 p-4 rounded-3xl text-indigo-600">
+                    <i data-lucide="key" className="w-8 h-8"></i>
+                  </div>
+                </div>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">개인 코드 로그인</h2>
+                <p className="text-slate-500 mt-3 font-medium text-sm">기존 저장 데이터를 불러오거나 새로 시작합니다.</p>
                 <input
                   value={personalCode}
-                  onChange={(e) => setPersonalCode(e.target.value)}
-                  className="mt-6 w-full p-5 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-lg text-center"
-                  placeholder="자신이 기억할 수 있는 자신만의 코드 입력"
-                  autoComplete="off"
+                  onChange={e => setPersonalCode(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                  className="mt-10 w-full p-6 rounded-3xl bg-slate-100 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-center text-2xl tracking-widest"
+                  placeholder="예: 20101홍길동"
                 />
-
-                {serverStatus && (
-                  <div className="mt-4 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-100 p-3 rounded-xl">
-                    {serverStatus}
-                  </div>
-                )}
-
+                {serverStatus && <p className="mt-4 text-xs font-bold text-indigo-600 bg-indigo-50 py-2 rounded-full">{serverStatus}</p>}
                 <button
                   onClick={handleLogin}
-                  className="mt-6 w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 transition-all"
+                  className="mt-8 w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all"
                 >
-                  입장하기
+                  시스템 접속
                 </button>
-
-                <div className="mt-6 text-[11px] text-slate-400 font-bold leading-relaxed">
-                  * 관리자 설정: CONFIG.SCRIPT_URL을 먼저 입력해야 합니다.
+                <div className="mt-8 text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
+                  * 초기 접속 시 해당 코드로 계정이 자동 생성됩니다.
                 </div>
               </div>
             </div>
           )}
 
-          {/* 화면 UI */}
+          {/* 메인 UI (로그인 후) */}
           <div className="no-print flex-grow flex flex-col">
-            <header className="bg-slate-900 text-white p-5 shadow-2xl flex justify-between items-center sticky top-0 z-50">
-              <div className="flex items-center gap-3">
-                <div className="bg-indigo-500 p-2 rounded-xl shadow-inner">
-                  <i data-lucide="sparkles" className="text-white w-5 h-5"></i>
-                </div>
+            
+            {/* 상단바 */}
+            <header className="bg-slate-900 text-white p-5 px-8 flex justify-between items-center sticky top-0 z-50 shadow-2xl">
+              <div className="flex items-center gap-4">
+                <div className="bg-indigo-500 p-2.5 rounded-2xl shadow-lg"><i data-lucide="zap" className="w-5 h-5"></i></div>
                 <div>
-                  <h1 className="text-xl font-black tracking-tighter leading-none">심화 탐구 마스터 시스템</h1>
-                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
-                    Premium Edition {CONFIG.APP_VERSION} (Server Save B)
-                  </p>
+                  <h1 className="text-xl font-black tracking-tighter leading-none">심화 탐구 통합 워크북</h1>
+                  <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.3em] mt-1.5">Premium Research Master {CONFIG.APP_VERSION}</p>
                 </div>
               </div>
-
-              <div className="flex gap-2 items-center">
-                {serverStatus && (
-                  <span className="text-[11px] font-black bg-white/10 border border-white/10 px-3 py-2 rounded-xl">
-                    {serverStatus}
-                  </span>
-                )}
-
-                <button
-                  onClick={handleSaveAll}
-                  className="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 shadow-xl transition-all active:scale-95"
-                  title="서버 저장 + 로컬 백업"
-                >
-                  <i data-lucide="cloud-upload" className="w-3 h-3"></i> 서버 저장
+              <div className="flex gap-2.5 items-center">
+                {serverStatus && <span className="text-[10px] font-black bg-white/5 border border-white/10 px-4 py-2 rounded-xl">{serverStatus}</span>}
+                <button onClick={handleSaveAll} className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg transition-all active:scale-95">
+                  <i data-lucide="save" className="w-3.5 h-3.5"></i> 서버 저장
                 </button>
-
-                <button
-                  onClick={() => saveToLocal(activeUserKey)}
-                  className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-white/5 shadow-inner active:scale-95"
-                  title="로컬 백업"
-                >
-                  <i data-lucide="save" className="w-3 h-3"></i> 로컬 저장
+                <button onClick={() => window.print()} className="bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-white/5 active:scale-95 transition-all">
+                  <i data-lucide="printer" className="w-3.5 h-3.5"></i> 인쇄
                 </button>
-
-                <button
-                  onClick={() => window.print()}
-                  className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-white/5 shadow-inner active:scale-95"
-                >
-                  <i data-lucide="printer" className="w-3 h-3"></i> 워크북 출력
-                </button>
-
-                <button
-                  onClick={handleLogout}
-                  className="bg-rose-600 hover:bg-rose-500 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 shadow-xl transition-all active:scale-95"
-                  title="로그아웃(세션만 종료)"
-                >
-                  <i data-lucide="log-out" className="w-3 h-3"></i> 로그아웃
+                <button onClick={handleLogout} className="bg-rose-600 hover:bg-rose-500 px-5 py-2.5 rounded-2xl text-xs font-black active:scale-95 transition-all">
+                  로그아웃
                 </button>
               </div>
             </header>
 
-            <nav className="bg-white border-b border-slate-200 flex gap-1 overflow-x-auto p-2 scrollbar-hide sticky top-[92px] z-40 shadow-sm">
+            {/* 탭 네비게이션 */}
+            <nav className="bg-white border-b flex gap-1.5 overflow-x-auto p-3 px-6 scrollbar-hide sticky top-[76px] z-40 shadow-sm">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setAiResult(""); }}
-                  className={`flex-shrink-0 px-4 py-2.5 rounded-xl border font-black text-[11px] flex items-center gap-2 transition-all ${
-                    activeTab === tab.id
-                      ? `${tab.color} text-white shadow-md scale-105 ring-2 ring-indigo-100 ring-offset-2`
-                      : "bg-white text-slate-500 border-slate-100 hover:bg-slate-50"
+                  className={`flex-shrink-0 px-5 py-3 rounded-2xl border font-black text-[11px] flex items-center gap-2.5 transition-all ${
+                    activeTab === tab.id ? `${tab.color} text-white shadow-xl scale-105 ring-4 ring-indigo-50` : "bg-white text-slate-500 border-slate-100 hover:bg-slate-50"
                   }`}
                 >
-                  <i data-lucide={tab.icon} className="w-3 h-3"></i> {tab.title}
+                  <i data-lucide={tab.icon} className="w-3.5 h-3.5"></i> {tab.title}
                 </button>
               ))}
             </nav>
 
-            <main className="flex-grow p-4 md:p-8 bg-slate-50">
-              <div className="max-w-5xl mx-auto pb-24">
-                {saveStatus && (
-                  <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-3 rounded-full text-xs font-black shadow-2xl z-50">
-                    {saveStatus}
-                  </div>
-                )}
-
-                {/* AI 결과 */}
+            {/* 메인 컨텐츠 영역 */}
+            <main className="flex-grow p-4 md:p-10 bg-slate-50">
+              <div className="max-w-6xl mx-auto pb-32">
+                
+                {/* AI 결과 팝업 */}
                 {(aiLoading || aiResult) && (
-                  <div className="mb-8 bg-white border border-indigo-100 rounded-[32px] p-8 shadow-2xl border-l-[12px] border-l-indigo-600 fade-in">
-                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-50">
-                      <div className="flex items-center gap-2 text-indigo-600 font-black">
-                        <i data-lucide="sparkles" className="w-5 h-5"></i> AI 튜터의 탐구 처방
+                  <div className="mb-10 bg-white border-2 border-indigo-100 rounded-[40px] p-10 shadow-2xl border-l-[16px] border-l-indigo-600 fade-in">
+                    <div className="flex items-center justify-between mb-6 pb-6 border-b">
+                      <div className="flex items-center gap-3 text-indigo-600 font-black text-lg">
+                        <i data-lucide="sparkles" className="w-6 h-6"></i> AI 튜터의 탐구 정밀 진단
                       </div>
-                      <button onClick={() => setAiResult("")} className="text-slate-300 hover:text-slate-600 transition-colors">
-                        <i data-lucide="x" className="w-4 h-4"></i>
+                      <button onClick={() => setAiResult("")} className="text-slate-300 hover:text-slate-900 transition-colors">
+                        <i data-lucide="x" className="w-6 h-6"></i>
                       </button>
                     </div>
                     {aiLoading ? (
-                      <div className="flex flex-col items-center py-6">
-                        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <p className="text-sm font-bold text-slate-400">입력 데이터를 분석하여 학술적 조언을 구성 중입니다...</p>
+                      <div className="flex flex-col items-center py-10">
+                        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-6"></div>
+                        <p className="text-base font-bold text-slate-500 tracking-tight">학생의 데이터를 학술적으로 분석하여 처방을 구성하고 있습니다...</p>
                       </div>
                     ) : (
-                      <div className="text-sm font-medium leading-relaxed whitespace-pre-wrap text-slate-700 bg-indigo-50/30 p-6 rounded-2xl border border-indigo-50 shadow-inner">
+                      <div className="text-base font-medium leading-relaxed whitespace-pre-wrap text-slate-800 bg-slate-50 p-8 rounded-3xl border border-slate-100 shadow-inner">
                         {aiResult}
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* 메인 카드 */}
-                <div className="bg-white rounded-[40px] border border-slate-200 shadow-sm p-6 md:p-10 min-h-[650px] flex flex-col">
+                {/* 탭별 컨텐츠 카드 */}
+                <div className="bg-white rounded-[56px] border border-slate-200 shadow-sm p-8 md:p-16 min-h-[700px] flex flex-col">
 
-                  {/* 0 정보 입력 */}
+                  {/* 탭 0: 정보 입력 */}
                   {activeTab === 0 && (
-                    <div className="space-y-10 fade-in">
-                      <div className="border-b border-slate-50 pb-8">
-                        <h2 className="text-4xl font-black text-slate-900 tracking-tighter">정보 입력</h2>
-                        <p className="text-slate-400 font-medium mt-2 text-sm uppercase tracking-widest italic">
-                          Personal Identification & Context
-                        </p>
+                    <div className="space-y-12 fade-in">
+                      <div>
+                        <h2 className="text-5xl font-black text-slate-900 tracking-tighter">정보 입력</h2>
+                        <p className="text-slate-400 font-black mt-2 text-sm uppercase tracking-[0.3em]">Personal Profile</p>
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                         {[
                           { id: "school", label: "학교명", placeholder: "OO고등학교" },
-                          { id: "gradeClass", label: "학번 (학년/반/번호)", placeholder: "예: 20101 또는 2-1-01" },
+                          { id: "gradeClass", label: "학번", placeholder: "예: 1111(4자리)" },
                           { id: "name", label: "성명", placeholder: "홍길동" },
-                          { id: "major", label: "희망전공", placeholder: "생명공학, 경영학 등" },
+                          { id: "major", label: "희망 전공", placeholder: "예: 생명공학" },
                         ].map(item => (
-                          <div key={item.id} className="space-y-3">
-                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">{item.label}</label>
+                          <div key={item.id} className="space-y-4">
+                            <Label>{item.label}</Label>
                             <input
                               name={item.id}
                               value={studentInfo[item.id]}
                               onChange={handleStudent}
-                              className="w-full p-5 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white focus:shadow-xl outline-none transition-all font-bold text-lg"
+                              className="w-full p-6 rounded-3xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none font-black text-xl transition-all shadow-sm"
                               placeholder={item.placeholder}
                             />
                           </div>
                         ))}
                       </div>
-
-                      <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 mt-10">
-                        <p className="text-xs font-bold text-indigo-700 leading-relaxed italic">
-                          ※ 입력 정보는 서버 저장 시 학생 개인코드에 귀속됩니다. 인쇄 시 표지/리포트에 자동 반영됩니다.
-                        </p>
+                      <div className="mt-10 p-8 bg-indigo-50/50 rounded-[32px] border border-indigo-100 italic font-bold text-indigo-800 text-sm">
+                        ※ 입력 정보는 리포트의 표지 및 AI 분석 시 기초 자료로 활용됩니다.
                       </div>
                     </div>
                   )}
 
-                  {/* 11 자료검색 비법 */}
+                  {/* 탭 11: 자료검색 비법 */}
                   {activeTab === 11 && (
-                    <div className="space-y-8 fade-in">
-                      <h2 className="text-3xl font-black text-amber-600 flex items-center gap-3">
-                        <i data-lucide="search" className="w-8 h-8"></i> 자료 검색 비법
+                    <div className="space-y-10 fade-in">
+                      <h2 className="text-4xl font-black text-amber-600 flex items-center gap-4">
+                        <i data-lucide="search" className="w-10 h-10"></i> 자료 검색 비법 (R-Master)
                       </h2>
-                      <div className="grid gap-6">
-                        <div className="bg-amber-50 p-8 rounded-[32px] border border-amber-200 hover:shadow-lg transition-all">
-                          <h3 className="font-black text-amber-900 text-lg mb-3 flex items-center gap-2">
-                            1. 논문 검색 5단계 전략 (DBpia/학술DB 활용)
-                          </h3>
-                          <p className="text-sm leading-relaxed text-amber-800 font-medium">
-                            (1) 전공 키워드 3개 조합 → (2) 최근 1~2년 필터 → (3) 인용/다운로드 상위 분석 →
-                            (4) 초록에서 변인·방법·데이터만 뽑기 → (5) 내 질문에 ‘숫자’로 연결.
-                          </p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div className="bg-amber-50 p-8 rounded-[40px] border border-amber-100 shadow-sm">
+                          <h3 className="font-black text-amber-900 text-lg mb-4">① 학술DB 필터링</h3>
+                          <ul className="text-sm text-amber-800 font-bold space-y-3">
+                            <li>- DBpia/RISS 최근 3년 이내 논문</li>
+                            <li>- 'KCI 등재' 논문 우선 확인</li>
+                            <li>- 초록(Abstract)의 결과 위주 확인</li>
+                          </ul>
                         </div>
-                        <div className="bg-indigo-50 p-8 rounded-[32px] border border-indigo-200 hover:shadow-lg transition-all">
-                          <h3 className="font-black text-indigo-900 text-lg mb-3 flex items-center gap-2">
-                            2. 지식의 계보학 (독서 확장 전략)
-                          </h3>
-                          <p className="text-sm leading-relaxed text-indigo-800 font-medium">
-                            교과서(기본) → 전공 기초서(개론) → 세부 학술 전문서(발췌독). ‘참고문헌/선행연구’를 추적하여 다음 자료로 넘어가면
-                            탐구의 신뢰도가 급상승합니다.
-                          </p>
+                        <div className="bg-indigo-50 p-8 rounded-[40px] border border-indigo-100 shadow-sm">
+                          <h3 className="font-black text-indigo-900 text-lg mb-4">② 고급 검색 문법</h3>
+                          <ul className="text-sm text-indigo-800 font-bold space-y-3">
+                            <li>- AND: 두 키워드 모두 포함</li>
+                            <li>- OR: 한 키워드라도 포함</li>
+                            <li>- " ": 정확한 문장 검색</li>
+                          </ul>
                         </div>
-                        <div className="bg-slate-900 p-8 rounded-[32px] text-white border border-slate-800">
-                          <h3 className="font-black text-lg mb-3 flex items-center gap-2">
-                            <i data-lucide="target" className="w-5 h-5"></i> 3. 검색어 템플릿 (그대로 복붙)
-                          </h3>
-                          <ul className="text-sm font-semibold leading-relaxed list-disc pl-5 text-slate-100/90 space-y-1">
-                            <li>“(핵심주제) AND (지표/변인) AND (청소년/학교/지역)”</li>
-                            <li>“(전공 키워드) effect impact regression survey”</li>
-                            <li>“site:go.kr (주제) 통계”, “site:ac.kr (주제) pdf”</li>
+                        <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl">
+                          <h3 className="font-black text-indigo-400 text-lg mb-4">③ 통계 및 원데이터</h3>
+                          <ul className="text-sm font-bold space-y-3">
+                            <li>- KOSIS 국가통계포털</li>
+                            <li>- 공공데이터포털(data.go.kr)</li>
+                            <li>- 각 기관 보도자료 통계</li>
                           </ul>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* 1차시 */}
+                  {/* 탭 1: 1차시 질문 생성 */}
                   {activeTab === 1 && (
-                    <div className="space-y-8 fade-in flex-grow">
-                      <div className="flex justify-between items-center border-b pb-6">
-                        <h2 className="text-3xl font-black tracking-tight text-slate-900">1차시: 탐구 질문 생성</h2>
-                        <button
-                          onClick={handleAiConsult}
-                          className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-black flex items-center gap-2 hover:bg-indigo-600 transition-all shadow-xl active:scale-95"
-                        >
-                          <i data-lucide="sparkles" className="w-4 h-4 text-amber-400"></i> AI 질문 정교화
+                    <div className="space-y-10 fade-in flex-grow">
+                      <div className="flex justify-between items-center border-b pb-8">
+                        <div>
+                          <h2 className="text-4xl font-black text-slate-900 tracking-tighter">1차시: 탐구 질문 생성</h2>
+                          <p className="text-slate-400 font-bold mt-1 text-xs uppercase">Research Question & Motivation</p>
+                        </div>
+                        <button onClick={handleAiConsult} disabled={aiLoading} className="btn-ai-glow text-white px-8 py-4 rounded-3xl text-sm font-black flex items-center gap-2 active:scale-95 shadow-2xl">
+                          <i data-lucide="sparkles" className="w-5 h-5 text-amber-300"></i> AI 질문 정교화 요청
                         </button>
                       </div>
-
-                      <div className="space-y-8">
-                        <div className="space-y-3">
+                      <div className="space-y-10 flex-grow">
+                        <div className="space-y-4">
                           <Label>탐구 동기 및 계기</Label>
                           <textarea
                             name="s1_motive"
                             value={sessionData.s1_motive}
                             onChange={handleInput}
-                            className="w-full h-40 p-6 rounded-[32px] bg-slate-50 border-none outline-none font-medium text-sm focus:ring-4 focus:ring-indigo-100 transition-all leading-relaxed"
-                            placeholder="어떤 수업 내용/사건이 궁금증을 만들었나요? 구체적 에피소드로 작성."
+                            className="w-full h-48 p-8 rounded-[40px] bg-slate-50 border-none outline-none font-medium text-base focus:ring-4 focus:ring-indigo-100 transition-all leading-relaxed"
+                            placeholder="수업 중 생긴 궁금증이나 사회적 사건 등 구체적인 동기를 작성하세요."
                           />
                         </div>
-
-                        <div className="space-y-3">
-                          <label className="text-[11px] font-black text-indigo-400 uppercase tracking-widest ml-1">
-                            핵심 탐구 질문 (RESEARCH QUESTION)
-                          </label>
+                        <div className="space-y-4">
+                          <Label>핵심 탐구 질문 (RQ)</Label>
                           <input
                             name="s1_question"
                             value={sessionData.s1_question}
                             onChange={handleInput}
-                            className="w-full p-6 rounded-2xl bg-indigo-50/50 border-2 border-indigo-100 focus:border-indigo-600 focus:bg-white outline-none font-black text-xl text-indigo-900 transition-all"
-                            placeholder="예: ~가 ~에 미치는 정량적 영향 분석"
+                            className="w-full p-8 rounded-[32px] bg-indigo-50/50 border-2 border-indigo-100 focus:border-indigo-600 focus:bg-white outline-none font-black text-2xl text-indigo-950 transition-all shadow-sm"
+                            placeholder="예: AI 기반 데이터 분석이 의료 진단 정확도에 미치는 영향 분석"
                           />
                         </div>
-
-                        <div className="space-y-3">
-                          <Label>교과/전공 연결 고리 (왜 이 질문이 전공과 연결되나)</Label>
+                        <div className="space-y-4">
+                          <Label>교과/전공 연결 고리</Label>
                           <textarea
                             name="s1_connection"
                             value={sessionData.s1_connection}
                             onChange={handleInput}
-                            className="w-full h-32 p-6 rounded-[32px] bg-slate-50 border-none outline-none font-medium text-sm focus:ring-4 focus:ring-indigo-100 transition-all leading-relaxed"
-                            placeholder="교과 개념 → 전공 개념(용어) → 사회/현상 적용의 연결을 문장으로."
+                            className="w-full h-32 p-8 rounded-[40px] bg-slate-50 outline-none font-medium text-base"
+                            placeholder="교과서의 어떤 원리가 전공의 어떤 개념과 연결되나요?"
                           />
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* 2차시 */}
+                  {/* 탭 2: 2차시 계획 */}
                   {activeTab === 2 && (
-                    <div className="space-y-8 fade-in">
-                      <div className="flex justify-between items-center border-b pb-6">
-                        <h2 className="text-3xl font-black text-slate-900 tracking-tighter">2차시: 도서 선정 및 계획</h2>
-                        <button
-                          onClick={handleAiConsult}
-                          className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-black flex items-center gap-2 hover:bg-indigo-600 transition-all shadow-xl active:scale-95"
-                        >
-                          <i data-lucide="sparkles" className="w-4 h-4 text-amber-400"></i> AI 계획 보완
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-3">
+                    <div className="space-y-10 fade-in flex-grow">
+                      <h2 className="text-4xl font-black text-slate-900 tracking-tighter border-b pb-8">2차시: 도서 및 탐구 계획</h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="space-y-4">
                           <Label>심화 도서명</Label>
-                          <input
-                            name="s2_book"
-                            value={sessionData.s2_book}
-                            onChange={handleInput}
-                            className="w-full p-5 rounded-2xl bg-slate-50 border-none outline-none font-bold text-lg"
-                            placeholder="책 제목"
-                          />
+                          <input name="s2_book" value={sessionData.s2_book} onChange={handleInput} className="w-full p-6 rounded-3xl bg-slate-50 outline-none font-black text-xl" placeholder="책 제목" />
                         </div>
-
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           <Label>저자</Label>
-                          <input
-                            name="s2_author"
-                            value={sessionData.s2_author}
+                          <input name="s2_author" value={sessionData.s2_author} onChange={handleInput} className="w-full p-6 rounded-3xl bg-slate-50 outline-none font-black text-xl" placeholder="저자명" />
+                        </div>
+                        <div className="space-y-4">
+                          <Label>도서 난이도</Label>
+                          <select name="s2_level" value={sessionData.s2_level} onChange={handleInput} className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg appearance-none outline-none focus:ring-4 focus:ring-indigo-100">
+                            <option>전공 기초(개론)</option><option>전문 학술서</option><option>교양서</option><option>원전/고전</option>
+                          </select>
+                        </div>
+                        <div className="space-y-4">
+                          <Label>최종 산출물 목표</Label>
+                          <select name="s2_goal" value={sessionData.s2_goal} onChange={handleInput} className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg appearance-none outline-none focus:ring-4 focus:ring-indigo-100">
+                            <option>학술 보고서</option><option>데이터 리포트</option><option>실험 보고서</option><option>정책 제안서</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <Label>집중 탐독 지점 (발췌독 챕터)</Label>
+                        <input name="s2_part" value={sessionData.s2_part} onChange={handleInput} className="w-full p-6 rounded-3xl bg-indigo-50/50 border border-indigo-100 outline-none font-black text-xl" placeholder="예: 제3장 데이터 리터러시의 실제적 적용 사례" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 탭 3: 3차시 도서 분석 */}
+                  {activeTab === 3 && (
+                    <div className="space-y-10 fade-in flex-grow">
+                      <div className="flex justify-between items-center border-b pb-8">
+                        <h2 className="text-4xl font-black text-slate-900 tracking-tighter">3차시: 도서 심화 분석</h2>
+                        <button onClick={handleAiConsult} disabled={aiLoading} className="btn-ai-glow text-white px-8 py-4 rounded-3xl text-sm font-black active:scale-95 shadow-2xl">
+                          <i data-lucide="book-open" className="w-5 h-5 inline-block mr-2"></i> 지식 정교화 코칭
+                        </button>
+                      </div>
+                      <div className="space-y-6">
+                        <div className="space-y-4">
+                          <Label>교과서 너머의 지식 (Depth Analysis)</Label>
+                          <textarea
+                            name="s3_depth"
+                            value={sessionData.s3_depth}
                             onChange={handleInput}
-                            className="w-full p-5 rounded-2xl bg-slate-50 border-none outline-none font-bold text-lg"
-                            placeholder="저자명(여러 명이면 쉼표로)"
+                            className="w-full h-80 p-10 rounded-[48px] bg-slate-50 border-none outline-none font-medium text-lg leading-relaxed shadow-inner"
+                            placeholder="도서를 통해 새롭게 알게 된 학술적 원리를 상세히 정리하세요."
                           />
                         </div>
-
-                        <div className="space-y-3">
-                          <Label>도서 난이도</Label>
-                          <select
-                            name="s2_level"
-                            value={sessionData.s2_level}
+                        <div className="space-y-4">
+                          <Label>추가 자료 추적</Label>
+                          <input
+                            name="s3_trace"
+                            value={sessionData.s3_trace}
                             onChange={handleInput}
-                            className="w-full p-5 rounded-2xl bg-slate-50 border-none outline-none font-bold text-lg appearance-none"
-                          >
-                            <option>기초 교양</option>
-                            <option>전공 기초(개론)</option>
-                            <option>전문 학술서</option>
-                          </select>
+                            className="w-full p-6 rounded-3xl bg-slate-50 outline-none font-bold"
+                            placeholder="책에서 언급된 논문이나 다른 도서 리스트"
+                          />
                         </div>
-
-                        <div className="space-y-3">
-                          <Label>최종 산출물 형태</Label>
-                          <select
-                            name="s2_goal"
-                            value={sessionData.s2_goal}
-                            onChange={handleInput}
-                            className="w-full p-5 rounded-2xl bg-slate-50 border-none outline-none font-bold text-lg appearance-none"
-                          >
-                            <option>학술 보고서</option>
-                            <option>실험/조사 보고서</option>
-                            <option>데이터 분석 리포트</option>
-                            <option>발표 자료(PPT) 요약</option>
-                            <option>세특용 요약(동기-과정-성장)</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <Label>집중 탐독 지점 (발췌독 챕터)</Label>
-                        <input
-                          name="s2_part"
-                          value={sessionData.s2_part}
-                          onChange={handleInput}
-                          className="w-full p-5 rounded-2xl bg-slate-50 border-none outline-none font-bold text-lg"
-                          placeholder="예: 제5장 경제학적 관점에서의 데이터 분석 원리"
-                        />
                       </div>
                     </div>
                   )}
 
-                  {/* 3차시 */}
-                  {activeTab === 3 && (
-                    <div className="space-y-8 fade-in">
-                      <div className="flex justify-between items-center border-b pb-6">
-                        <h2 className="text-3xl font-black text-slate-900 tracking-tighter">3차시: 도서 심화 분석</h2>
-                        <button
-                          onClick={handleAiConsult}
-                          className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-black flex items-center gap-2 hover:bg-indigo-600 transition-all shadow-xl active:scale-95"
-                        >
-                          <i data-lucide="sparkles" className="w-4 h-4 text-amber-400"></i> AI 요약 점검
-                        </button>
-                      </div>
-
-                      <div className="space-y-3">
-                        <Label>지식의 확장 (교과서 이상의 원리)</Label>
-                        <textarea
-                          name="s3_depth"
-                          value={sessionData.s3_depth}
-                          onChange={handleInput}
-                          className="w-full h-56 p-8 rounded-[40px] bg-slate-50 border-none outline-none font-medium text-base leading-relaxed shadow-inner"
-                          placeholder="책에서 찾은 전문 지식을 본인 언어로 재정의/요약."
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <Label>자료 추적 (꼬리 물기 독서/논문 리스트)</Label>
-                        <input
-                          name="s3_trace"
-                          value={sessionData.s3_trace}
-                          onChange={handleInput}
-                          className="w-full p-5 rounded-2xl bg-slate-50 border-none outline-none font-bold text-lg"
-                          placeholder="추가로 찾아본 논문/원전 제목"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 4차시 */}
+                  {/* 탭 4: 4차시 논문 분석 */}
                   {activeTab === 4 && (
-                    <div className="space-y-8 fade-in">
-                      <div className="flex justify-between items-center border-b pb-6">
-                        <h2 className="text-3xl font-black text-slate-900 tracking-tighter">4차시: 논문 데이터 추출</h2>
-                        <button
-                          onClick={handleAiConsult}
-                          className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-black flex items-center gap-2 hover:bg-indigo-600 transition-all shadow-xl active:scale-95"
-                        >
-                          <i data-lucide="sparkles" className="w-4 h-4 text-amber-400"></i> AI 주근설 생성
+                    <div className="space-y-10 fade-in flex-grow">
+                      <div className="flex justify-between items-center border-b pb-8">
+                        <div>
+                          <h2 className="text-4xl font-black text-slate-900 tracking-tighter">4차시: 논문 데이터 분석</h2>
+                          <p className="text-slate-400 font-bold mt-1 text-xs uppercase">Scholarly Evidence & Facts</p>
+                        </div>
+                        <button onClick={handleAiConsult} disabled={aiLoading} className="btn-ai-glow text-white px-8 py-4 rounded-3xl text-sm font-black flex items-center gap-2 active:scale-95">
+                          <i data-lucide="bar-chart" className="w-5 h-5"></i> AI 주근설 문장 생성
                         </button>
                       </div>
-
-                      <div className="space-y-3">
-                        <Label>최신 학술 트렌드 분석</Label>
-                        <textarea
-                          name="s4_keyword"
-                          value={sessionData.s4_keyword}
-                          onChange={handleInput}
-                          className="w-full h-40 p-6 rounded-[32px] bg-slate-50 border-none outline-none font-medium text-sm leading-relaxed"
-                          placeholder="상위 논문들이 공통적으로 다루는 핵심 문제/키워드."
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <label className="text-[11px] font-black text-indigo-400 uppercase ml-1 tracking-widest">
-                          핵심 숫자와 팩트 (CORE DATA)
-                        </label>
-                        <textarea
-                          name="s4_fact"
-                          value={sessionData.s4_fact}
-                          onChange={handleInput}
-                          className="w-full h-48 p-8 rounded-[40px] bg-indigo-50/30 border-2 border-dashed border-indigo-200 outline-none font-black text-base text-indigo-900 leading-relaxed"
-                          placeholder="논문 요약/결론에서 찾은 수치·표·지표(출처/연도 포함 권장)."
-                        />
+                      <div className="space-y-10 flex-grow">
+                        <div className="space-y-4">
+                          <Label>최신 학술 트렌드/키워드</Label>
+                          <textarea name="s4_keyword" value={sessionData.s4_keyword} onChange={handleInput} className="w-full h-32 p-8 rounded-[40px] bg-slate-50 outline-none font-medium" placeholder="논문들에서 공통적으로 다루는 핵심 문제의식" />
+                        </div>
+                        <div className="space-y-4">
+                          <Label>핵심 숫자와 팩트 (Core Evidence)</Label>
+                          <textarea
+                            name="s4_fact"
+                            value={sessionData.s4_fact}
+                            onChange={handleInput}
+                            className="w-full h-64 p-10 rounded-[48px] bg-indigo-50/30 border-2 border-dashed border-indigo-200 outline-none font-black text-lg text-indigo-900 leading-relaxed shadow-sm"
+                            placeholder="보고서의 근거가 될 통계 수치, 실험 결과, 표의 데이터 등을 출처와 함께 기록하세요."
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* 13 방법론 */}
+                  {/* 탭 13: 탐구 방법론 */}
                   {activeTab === 13 && (
-                    <div className="space-y-10 fade-in">
-                      <h2 className="text-3xl font-black text-indigo-600 tracking-tighter">📊 탐구 방법론 마스터 가이드</h2>
-
+                    <div className="space-y-12 fade-in">
+                      <h2 className="text-4xl font-black text-indigo-600 tracking-tighter">📊 탐구 방법론 마스터 가이드</h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-indigo-50 p-8 rounded-[40px] border border-indigo-100 shadow-sm">
-                          <h3 className="font-black text-indigo-900 text-lg mb-4 flex items-center gap-2">
-                            <i data-lucide="shuffle" className="w-5 h-5"></i> ① 비교 분석형
-                          </h3>
-                          <p className="text-sm text-indigo-800 leading-relaxed font-medium">
-                            과거 vs 현재, 집단 A vs 집단 B를 동일 지표로 비교하여 차이를 수치로 도출.
-                          </p>
+                        <div className="bg-indigo-50 p-10 rounded-[48px] border-2 border-indigo-100 shadow-sm relative overflow-hidden group">
+                           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform"><i data-lucide="database" className="w-20 h-20"></i></div>
+                           <h3 className="font-black text-indigo-900 text-2xl mb-4">① 데이터 재해석형</h3>
+                           <p className="text-sm text-indigo-800 leading-relaxed font-bold">공공데이터나 통계 수치를 새로운 가설로 연결하여 시각화하고 분석합니다.</p>
                         </div>
-
-                        <div className="bg-indigo-50 p-8 rounded-[40px] border border-indigo-100 shadow-sm">
-                          <h3 className="font-black text-indigo-900 text-lg mb-4 flex items-center gap-2">
-                            <i data-lucide="database" className="w-5 h-5"></i> ② 데이터 재해석형
-                          </h3>
-                          <p className="text-sm text-indigo-800 leading-relaxed font-medium">
-                            공공데이터/통계 데이터를 ‘내 가설’로 재구성해 검증. (상관/회귀/교차분석 등)
-                          </p>
+                        <div className="bg-emerald-50 p-10 rounded-[48px] border-2 border-emerald-100 shadow-sm relative overflow-hidden group">
+                           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform"><i data-lucide="shuffle" className="w-20 h-20"></i></div>
+                           <h3 className="font-black text-emerald-900 text-2xl mb-4">② 사례 비교형</h3>
+                           <p className="text-sm text-emerald-800 leading-relaxed font-bold">동일한 변인을 가진 다른 사례 A와 B를 대조하여 차이의 원인을 탐구합니다.</p>
                         </div>
-
-                        <div className="bg-indigo-50 p-8 rounded-[40px] border border-indigo-100 shadow-sm">
-                          <h3 className="font-black text-indigo-900 text-lg mb-4 flex items-center gap-2">
-                            <i data-lucide="test-tube" className="w-5 h-5"></i> ③ 실험·검증형
-                          </h3>
-                          <p className="text-sm text-indigo-800 leading-relaxed font-medium">
-                            변인을 통제하고 작은 실험/시뮬레이션으로 인과를 탐색.
-                          </p>
+                        <div className="bg-rose-50 p-10 rounded-[48px] border-2 border-rose-100 shadow-sm relative overflow-hidden group">
+                           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform"><i data-lucide="test-tube" className="w-20 h-20"></i></div>
+                           <h3 className="font-black text-rose-900 text-2xl mb-4">③ 가설 실험형</h3>
+                           <p className="text-sm text-rose-800 leading-relaxed font-bold">특정 변인을 통제한 상태에서 실험을 수행하고 예측값과 실제값을 비교합니다.</p>
                         </div>
-
-                        <div className="bg-indigo-50 p-8 rounded-[40px] border border-indigo-100 shadow-sm">
-                          <h3 className="font-black text-indigo-900 text-lg mb-4 flex items-center gap-2">
-                            <i data-lucide="pen-line" className="w-5 h-5"></i> ④ 이론-사례 연결형
-                          </h3>
-                          <p className="text-sm text-indigo-800 leading-relaxed font-medium">
-                            전공 이론을 실제 사례(기사/정책/기업/판례)에 적용하여 논리 전개.
-                          </p>
+                        <div className="bg-amber-50 p-10 rounded-[48px] border-2 border-amber-100 shadow-sm relative overflow-hidden group">
+                           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform"><i data-lucide="pen-tool" className="w-20 h-20"></i></div>
+                           <h3 className="font-black text-amber-900 text-2xl mb-4">④ 이론 적용형</h3>
+                           <p className="text-sm text-amber-800 leading-relaxed font-bold">추상적인 전공 이론을 실제 사회 현상이나 기업 사례에 대입하여 분석합니다.</p>
                         </div>
                       </div>
-
-                      <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-2xl border-l-[12px] border-indigo-500">
-                        <h3 className="font-black mb-4 text-indigo-300 text-xl tracking-tighter">🛡️ 주장-근거-설명(주근설) 문장 공식</h3>
-                        <p className="text-base leading-relaxed font-bold italic">
-                          "[자료출처/연도]에 의하면 [A]는 [B]보다 [지표]가 약 [N]% 높게 나타남. 이는 [이론/원리]에 따라 [원인-해석]으로 설명 가능함."
-                        </p>
+                      <div className="bg-slate-900 p-10 rounded-[48px] text-white shadow-2xl">
+                         <h3 className="font-black text-indigo-400 text-xl mb-4 tracking-tighter">💡 주근설 문장 공식</h3>
+                         <p className="text-lg leading-relaxed font-bold italic">"[자료출처/연도]에 의하면 [A] 지표가 [N] 수치로 나타남. 이는 [학습한 원리]에 비추어 볼 때 [해석/분석]으로 판단할 수 있음."</p>
                       </div>
                     </div>
                   )}
 
-                  {/* 5~7차시 */}
+                  {/* 탭 5: 5~7차시 수행 기록 */}
                   {activeTab === 5 && (
-                    <div className="space-y-8 fade-in flex-grow">
-                      <div className="flex justify-between items-center border-b pb-6">
-                        <h2 className="text-3xl font-black text-slate-900 tracking-tighter">5~7차시: 수행 및 노력 기록</h2>
-                        <button
-                          onClick={handleAiConsult}
-                          className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-black flex items-center gap-2 hover:bg-indigo-600 transition-all shadow-xl active:scale-95"
-                        >
-                          <i data-lucide="sparkles" className="w-4 h-4 text-amber-400"></i> AI 수행 코칭
+                    <div className="space-y-10 fade-in flex-grow">
+                      <div className="flex justify-between items-center border-b pb-8">
+                        <div>
+                          <h2 className="text-4xl font-black text-slate-900 tracking-tighter">5~7차시: 수행 및 노력 기록</h2>
+                          <p className="text-slate-400 font-bold mt-1 text-xs uppercase">Action Log & Failure Record</p>
+                        </div>
+                        <button onClick={handleAiConsult} disabled={aiLoading} className="btn-ai-glow text-white px-8 py-4 rounded-3xl text-sm font-black active:scale-95">
+                           <i data-lucide="list-checks" className="w-5 h-5 inline-block mr-2"></i> 수행 코칭 요청
                         </button>
                       </div>
-
                       <div className="space-y-8 flex-grow">
-                        <div className="space-y-3">
-                          <Label>진짜 노력 일지 (ACTION LOG)</Label>
+                        <div className="space-y-4">
+                          <Label>진짜 노력 일지 (Action Log)</Label>
                           <textarea
                             name="s5_log"
                             value={sessionData.s5_log}
                             onChange={handleInput}
-                            className="w-full h-56 p-8 rounded-[40px] bg-slate-50 border-none outline-none font-medium text-sm leading-relaxed shadow-inner"
-                            placeholder="방문 사이트/검색어 변화/데이터 가공(엑셀·코딩)/그래프/정리 과정을 날짜별로 기록."
+                            className="w-full h-48 p-8 rounded-[40px] bg-slate-50 border-none outline-none font-medium text-sm leading-relaxed shadow-inner"
+                            placeholder="방문 사이트, 데이터 가공 과정, 참고한 수식 등 구체적인 행위를 날짜별로 기록하세요."
                           />
                         </div>
-
-                        <div className="space-y-3">
-                          <label className="text-[11px] font-black text-rose-400 uppercase tracking-widest ml-1">시행착오 기록 (ERROR LOG)</label>
+                        <div className="space-y-4">
+                          <Label>시행착오 및 실패 기록 (Error Log)</Label>
                           <textarea
                             name="s5_error"
                             value={sessionData.s5_error}
                             onChange={handleInput}
-                            className="w-full h-32 p-6 rounded-[32px] bg-rose-50/30 border-none outline-none font-medium text-sm leading-relaxed text-rose-900 italic"
-                            placeholder="자료 부족/가설 반례/오류 수정/방법 변경 등 실패의 흔적을 솔직히."
+                            className="w-full h-32 p-8 rounded-[40px] bg-rose-50/50 border-none outline-none font-medium text-sm text-rose-900 italic"
+                            placeholder="자료가 없어서 실패했거나 가설이 틀렸던 지점 등 실패의 흔적을 솔직히 적으세요."
                           />
                         </div>
-
-                        <div className="space-y-3">
-                          <label className="text-[11px] font-black text-emerald-600 uppercase tracking-widest ml-1">중간 산출물/결과 (INTERIM RESULTS)</label>
+                        <div className="space-y-4">
+                          <Label>중간 산출물 (Interim Result)</Label>
                           <textarea
                             name="s5_result"
                             value={sessionData.s5_result}
                             onChange={handleInput}
-                            className="w-full h-36 p-6 rounded-[32px] bg-emerald-50/30 border-none outline-none font-bold text-sm leading-relaxed"
-                            placeholder="표/그래프/요약 결론/도출된 패턴 등을 간단히 정리."
+                            className="w-full h-32 p-8 rounded-[40px] bg-emerald-50/50 border-none outline-none font-black text-sm text-emerald-900"
+                            placeholder="도출된 표, 그래프의 수치나 핵심 중간 결론을 적으세요."
                           />
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* 12 AI 가이드 */}
+                  {/* 탭 12: AI 가이드 */}
                   {activeTab === 12 && (
-                    <div className="space-y-8 fade-in text-center py-10">
-                      <div className="bg-rose-50 p-12 rounded-[80px] border border-rose-100 max-w-2xl mx-auto shadow-xl">
-                        <i data-lucide="alert-triangle" className="w-16 h-16 text-rose-500 mx-auto mb-6"></i>
-                        <h2 className="text-3xl font-black text-rose-900 tracking-tighter mb-4">AI는 발품을 팔지 않습니다.</h2>
-                        <p className="text-base text-rose-800 leading-relaxed font-bold mb-8">
-                          사정관은 매끄러운 문장보다<br />여러분의 ‘시행착오 기록’과 ‘자료 처리 과정’을 신뢰합니다.
-                        </p>
-                        <div className="text-left bg-white/50 p-8 rounded-3xl space-y-4 font-bold text-sm text-rose-900 border border-rose-100">
-                          <p className="flex gap-2">
-                            <i data-lucide="check-circle" className="w-4 h-4 mt-0.5 shrink-0 text-rose-500"></i>
-                            AI에게 결과물을 대신 써달라고 하지 말고, 논리의 빈틈을 공격하게 하세요.
-                          </p>
-                          <p className="flex gap-2">
-                            <i data-lucide="check-circle" className="w-4 h-4 mt-0.5 shrink-0 text-rose-500"></i>
-                            “근거가 되는 숫자/표/출처”가 없으면 학술 탐구가 아니라 감상문이 됩니다.
-                          </p>
-                          <p className="flex gap-2">
-                            <i data-lucide="check-circle" className="w-4 h-4 mt-0.5 shrink-0 text-rose-500"></i>
-                            실패 기록(자료 없음, 오류, 가설 반례)을 당당히 남기세요. 그게 실력입니다.
-                          </p>
-                        </div>
+                    <div className="space-y-12 fade-in text-center py-16">
+                      <div className="bg-rose-50 p-16 rounded-[80px] border-4 border-rose-100 max-w-3xl mx-auto shadow-2xl">
+                         <i data-lucide="alert-triangle" className="w-20 h-20 text-rose-500 mx-auto mb-8"></i>
+                         <h2 className="text-4xl font-black text-rose-900 tracking-tighter mb-6">AI는 발품을 대신 팔지 않습니다.</h2>
+                         <p className="text-xl text-rose-800 leading-relaxed font-bold mb-10 italic">
+                            사정관은 매끄러운 AI 문장보다<br />여러분의 거칠고 투박한 '시행착오 기록'을 더 신뢰합니다.
+                         </p>
+                         <div className="text-left bg-white/60 p-10 rounded-[40px] space-y-6 font-bold text-base text-rose-950 border border-rose-200 shadow-inner">
+                            <p className="flex gap-4"><i data-lucide="check-circle" className="w-6 h-6 shrink-0 text-rose-600"></i> AI는 논리 구조를 잡는 보조 도구로만 활용하세요.</p>
+                            <p className="flex gap-4"><i data-lucide="check-circle" className="w-6 h-6 shrink-0 text-rose-600"></i> 반드시 직접 찾은 '숫자'와 '데이터'를 프롬프트에 넣으세요.</p>
+                            <p className="flex gap-4"><i data-lucide="check-circle" className="w-6 h-6 shrink-0 text-rose-600"></i> 매끄럽게 수정해달라는 요청보다, 논리의 허점을 찾아달라고 하세요.</p>
+                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* 8~10차시 */}
+                  {/* 탭 8: 8~10차시 성찰 */}
                   {activeTab === 8 && (
-                    <div className="space-y-8 fade-in flex-grow">
-                      <div className="flex justify-between items-center border-b pb-6">
-                        <h2 className="text-3xl font-black text-indigo-600 tracking-tighter">8~10차시: 성찰 및 최종 요약</h2>
-                        <button
-                          onClick={handleAiConsult}
-                          className="bg-indigo-600 text-white px-6 py-3 rounded-2xl text-xs font-black flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-xl active:scale-95 shadow-indigo-100"
-                        >
-                          <i data-lucide="sparkles" className="w-4 h-4 text-white"></i> AI 세특 초안 완성
+                    <div className="space-y-10 fade-in flex-grow">
+                      <div className="flex justify-between items-center border-b pb-8">
+                        <div>
+                          <h2 className="text-4xl font-black text-indigo-600 tracking-tighter">8~10차시: 성찰 및 최종 요약</h2>
+                          <p className="text-slate-400 font-bold mt-1 text-xs uppercase">Synthesis & Final Portfolio</p>
+                        </div>
+                        <button onClick={handleAiConsult} disabled={aiLoading} className="bg-indigo-600 text-white px-8 py-5 rounded-[24px] text-sm font-black active:scale-95 shadow-2xl">
+                           <i data-lucide="sparkles" className="w-5 h-5 inline-block mr-2"></i> AI 세특 초안 완성 요청
                         </button>
                       </div>
-
-                      <div className="space-y-6">
-                        <div className="space-y-3">
-                          <Label>최종 답변 (데이터 기반의 나의 주장)</Label>
-                          <textarea
-                            name="s8_claim"
-                            value={sessionData.s8_claim}
-                            onChange={handleInput}
-                            className="w-full h-28 p-6 rounded-[32px] bg-slate-50 border-none outline-none font-black text-base leading-relaxed"
-                            placeholder="예: 탐구 결과, ~는 ~와 비선형 관계이며 최적값은 ~로 확인됨."
-                          />
+                      <div className="space-y-8 flex-grow">
+                        <div className="space-y-4">
+                          <Label>최종 주장 (Final Claim)</Label>
+                          <textarea name="s8_claim" value={sessionData.s8_claim} onChange={handleInput} className="w-full h-32 p-8 rounded-[40px] bg-slate-50 outline-none font-black text-xl leading-relaxed" placeholder="탐구 결과를 한 문장으로 정의한다면?" />
                         </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-3">
-                            <Label>성장/배운 점</Label>
-                            <textarea
-                              name="s8_growth"
-                              value={sessionData.s8_growth}
-                              onChange={handleInput}
-                              className="w-full h-36 p-6 rounded-[32px] bg-slate-50 border-none outline-none font-bold text-sm leading-relaxed"
-                              placeholder="개념/방법/태도 측면에서의 성장."
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          <div className="space-y-4">
+                            <Label>성장 및 배운 점</Label>
+                            <textarea name="s8_growth" value={sessionData.s8_growth} onChange={handleInput} className="w-full h-40 p-8 rounded-[40px] bg-slate-50 outline-none font-bold text-base" placeholder="개념/기술/태도 측면에서의 변화" />
                           </div>
-
-                          <div className="space-y-3">
-                            <Label>후속 탐구</Label>
-                            <textarea
-                              name="s8_next"
-                              value={sessionData.s8_next}
-                              onChange={handleInput}
-                              className="w-full h-36 p-6 rounded-[32px] bg-slate-50 border-none outline-none font-bold text-sm leading-relaxed"
-                              placeholder="한계, 추가 데이터, 다른 집단/변인으로 확장."
-                            />
+                          <div className="space-y-4">
+                            <Label>후속 탐구 제언</Label>
+                            <textarea name="s8_next" value={sessionData.s8_next} onChange={handleInput} className="w-full h-40 p-8 rounded-[40px] bg-slate-50 outline-none font-bold text-base" placeholder="한계점과 다음 연구 방향" />
                           </div>
                         </div>
-
-                        <div className="p-10 bg-slate-900 text-white rounded-[60px] shadow-2xl border-b-[12px] border-indigo-600 flex-grow relative overflow-hidden">
-                          <div className="absolute top-0 right-0 p-8 opacity-10">
-                            <i data-lucide="graduation-cap" className="w-32 h-32 text-indigo-400"></i>
-                          </div>
-                          <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-[0.3em] mb-6">
-                            🎓 생활기록부 요약본 (FINAL SUMMARY)
-                          </label>
-                          <textarea
-                            name="s8_summary"
-                            value={sessionData.s8_summary}
-                            onChange={handleInput}
-                            className="w-full h-56 bg-transparent border-none outline-none text-lg font-black leading-relaxed resize-none scrollbar-hide relative z-10"
-                            placeholder="[동기-과정-성장] 구조로 10차시 여정을 완결하세요."
-                          />
+                        <div className="p-12 bg-slate-900 text-white rounded-[64px] shadow-2xl relative overflow-hidden flex-grow">
+                           <div className="absolute top-0 right-0 p-10 opacity-10"><i data-lucide="graduation-cap" className="w-40 h-40 text-indigo-400"></i></div>
+                           <Label><span className="text-indigo-400">🎓 생활기록부 요약본 (FINAL SUMMARY)</span></Label>
+                           <textarea
+                             name="s8_summary"
+                             value={sessionData.s8_summary}
+                             onChange={handleInput}
+                             className="w-full h-72 bg-transparent border-none outline-none text-xl font-black leading-relaxed mt-6 resize-none scrollbar-hide relative z-10"
+                             placeholder="[동기-과정-성장-후속] 구조로 10차시 여정을 500자 이내로 완결하세요."
+                           />
                         </div>
                       </div>
                     </div>
                   )}
 
                 </div>
-
-                {/* 하단 퀵 액션 */}
-                <div className="fixed bottom-6 right-6 no-print flex flex-col gap-2">
-                  <button
-                    onClick={handleAiConsult}
-                    className="bg-slate-900 text-white px-5 py-3 rounded-2xl text-xs font-black shadow-2xl hover:bg-indigo-600 transition-all active:scale-95 flex items-center gap-2"
-                    title="현재 탭 기반 AI 코칭(선택 기능)"
-                  >
-                    <i data-lucide="sparkles" className="w-4 h-4 text-amber-400"></i> AI 코칭
-                  </button>
-                  <button
-                    onClick={handleSaveAll}
-                    className="bg-indigo-600 text-white px-5 py-3 rounded-2xl text-xs font-black shadow-2xl hover:bg-indigo-500 transition-all active:scale-95 flex items-center gap-2"
-                    title="서버 저장 + 로컬 백업"
-                  >
-                    <i data-lucide="cloud-upload" className="w-4 h-4"></i> 서버 저장
-                  </button>
-                </div>
-
               </div>
             </main>
           </div>
 
-          {/* ✅ 인쇄 전용 레이아웃: 반드시 return 내부에 있어야 함 */}
-          <div className="print-only bg-white text-slate-900 w-full">
+          {/* 🖨️ 인쇄용 레이아웃 (완전 복구) */}
+          <div className="print-only bg-white text-slate-900 w-full font-serif">
+            
             {/* 1페이지: 표지 */}
-            <div className="page flex flex-col justify-between h-[297mm] p-10">
-              <div className="mt-32">
-                <h1 className="text-6xl font-black tracking-tighter mb-4">심화 탐구 통합 워크북</h1>
-                <p className="text-2xl text-slate-400 font-bold tracking-widest uppercase">Research Report Portfolio</p>
-                <div className="mt-40 grid grid-cols-2 gap-12 border-t-8 border-slate-900 pt-16">
-                  <div>
-                    <p className="text-xs font-black text-slate-400 mb-4">SCHOOL</p>
-                    <p className="text-4xl font-black">{studentInfo.school || "미입력"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-black text-slate-400 mb-4">MAJOR</p>
-                    <p className="text-4xl font-black">{studentInfo.major || "미입력"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-black text-slate-400 mb-4">STUDENT ID / NAME</p>
-                    <p className="text-4xl font-black">{studentInfo.gradeClass} {studentInfo.name || "미입력"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-black text-slate-400 mb-4">ISSUE DATE</p>
-                    <p className="text-4xl font-black">{issueDate}</p>
-                  </div>
+            <div className="page flex flex-col justify-between p-24 border-[30px] border-double border-slate-900 m-10">
+              <div className="mt-20">
+                <div className="flex gap-4 items-center mb-10">
+                  <div className="bg-slate-900 text-white p-3 font-black text-xs uppercase tracking-widest">Premium Research Report</div>
+                </div>
+                <h1 className="text-8xl font-black tracking-tighter leading-tight mb-6">심화 탐구<br />통합 워크북</h1>
+                <p className="text-3xl font-bold text-slate-400 uppercase tracking-[0.4em] mb-40">Comprehensive Research Workbook</p>
+                
+                <div className="grid grid-cols-2 gap-y-16 gap-x-32 pt-20 border-t-8 border-slate-900">
+                  <div><p className="text-sm font-black text-slate-400 mb-4 uppercase">Institution</p><p className="text-5xl font-black">{studentInfo.school || "미입력"}</p></div>
+                  <div><p className="text-sm font-black text-slate-400 mb-4 uppercase">Target Major</p><p className="text-5xl font-black">{studentInfo.major || "미입력"}</p></div>
+                  <div><p className="text-sm font-black text-slate-400 mb-4 uppercase">Student Info</p><p className="text-5xl font-black">{studentInfo.gradeClass} {studentInfo.name || "미입력"}</p></div>
+                  <div><p className="text-sm font-black text-slate-400 mb-4 uppercase">Issued Date</p><p className="text-5xl font-black">{issueDate}</p></div>
                 </div>
               </div>
-              <div className="text-right text-slate-300 font-black italic tracking-widest">
-                MASTER SYSTEM {CONFIG.APP_VERSION}
+              <div className="text-right text-slate-300 font-black italic text-xl">MASTER SYSTEM v3.9 PRO EDITION</div>
+            </div>
+
+            <div className="page-break"></div>
+
+            {/* 2페이지: 탐구 질문 및 설계 */}
+            <div className="page p-20 space-y-16 min-h-[290mm]">
+              <h2 className="text-5xl font-black border-b-8 border-slate-900 pb-6 uppercase tracking-tighter">01. 탐구 설계 및 배경</h2>
+              <div className="space-y-12">
+                <div className="p-12 bg-slate-50 border-4 border-slate-100 rounded-[48px]">
+                  <h3 className="text-sm font-black text-slate-400 mb-4 uppercase">[Core Question]</h3>
+                  <p className="text-4xl font-black text-indigo-900 leading-tight">{sessionData.s1_question || "입력된 탐구 질문이 없습니다."}</p>
+                </div>
+                <div className="grid grid-cols-1 gap-12">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-400 mb-4 uppercase border-b-2 pb-2 inline-block">[Motivation]</h3>
+                    <p className="text-xl font-medium leading-relaxed whitespace-pre-wrap">{sessionData.s1_motive}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-400 mb-4 uppercase border-b-2 pb-2 inline-block">[Academic Connection]</h3>
+                    <p className="text-xl font-medium leading-relaxed whitespace-pre-wrap">{sessionData.s1_connection}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-12 border-t-2 pt-10">
+                  <div><h3 className="text-sm font-black text-slate-400 mb-2">[Target Book]</h3><p className="text-2xl font-black">{sessionData.s2_book}</p></div>
+                  <div><h3 className="text-sm font-black text-slate-400 mb-2">[Final Goal]</h3><p className="text-2xl font-black">{sessionData.s2_goal}</p></div>
+                </div>
               </div>
             </div>
 
             <div className="page-break"></div>
 
-            {/* 2페이지: 탐구 설계 상세 */}
-            <div className="page space-y-12 p-10">
-              <h2 className="text-4xl font-black border-b-4 border-slate-900 pb-4">01. 탐구 설계</h2>
-              <div className="space-y-10">
-                <div className="p-8 bg-slate-50 rounded-3xl border-2 border-slate-100">
-                  <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Research Question]</h3>
-                  <p className="text-3xl font-black text-indigo-900 leading-tight">
-                    {sessionData.s1_question || "탐구 질문이 입력되지 않았습니다."}
-                  </p>
+            {/* 3페이지: 데이터 분석 및 수행 */}
+            <div className="page p-20 space-y-16 min-h-[290mm]">
+              <h2 className="text-5xl font-black border-b-8 border-slate-900 pb-6 uppercase tracking-tighter">02. 데이터 분석 및 수행 과정</h2>
+              <div className="space-y-12">
+                <div className="bg-slate-900 text-white p-16 rounded-[64px] shadow-xl relative overflow-hidden">
+                   <div className="absolute top-0 right-0 p-8 opacity-10"><i data-lucide="bar-chart-2" className="w-40 h-40"></i></div>
+                   <h3 className="text-xs font-black text-indigo-400 mb-6 uppercase tracking-widest">[Core Evidence & Data]</h3>
+                   <p className="text-2xl font-bold leading-relaxed whitespace-pre-wrap relative z-10">{sessionData.s4_fact}</p>
                 </div>
                 <div>
-                  <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Motivation]</h3>
-                  <p className="whitespace-pre-wrap leading-relaxed text-lg">{sessionData.s1_motive}</p>
+                  <h3 className="text-sm font-black text-slate-400 mb-4 uppercase border-b-2 pb-2 inline-block">[Knowledge Depth]</h3>
+                  <p className="text-xl font-medium leading-relaxed whitespace-pre-wrap">{sessionData.s3_depth}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-8 border-t pt-8">
-                  <div>
-                    <h3 className="text-xs font-black mb-2 uppercase">[Target Book]</h3>
-                    <p className="font-bold text-xl">{sessionData.s2_book} {sessionData.s2_author ? `(${sessionData.s2_author})` : ""}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-black mb-2 uppercase">[Goal]</h3>
-                    <p className="font-bold text-xl">{sessionData.s2_goal}</p>
-                  </div>
+                <div className="p-10 bg-slate-50 border-2 border-slate-100 rounded-[48px]">
+                  <h3 className="text-sm font-black text-slate-400 mb-4 uppercase">[Action Log]</h3>
+                  <p className="text-lg font-bold leading-relaxed whitespace-pre-wrap">{sessionData.s5_log}</p>
                 </div>
               </div>
             </div>
 
             <div className="page-break"></div>
 
-            {/* 3페이지: 데이터 분석 및 수행 기록 */}
-            <div className="page space-y-12 p-10">
-              <h2 className="text-4xl font-black border-b-4 border-slate-900 pb-4">02. 데이터 및 분석 결과</h2>
-              <div className="space-y-8">
-                <div className="bg-slate-900 text-white p-10 rounded-[50px]">
-                  <h3 className="text-xs font-black text-indigo-400 mb-4 uppercase">[Core Fact & Core Data]</h3>
-                  <p className="text-xl leading-relaxed font-bold whitespace-pre-wrap">{sessionData.s4_fact}</p>
+            {/* 4페이지: 최종 결과 및 세특 */}
+            <div className="page p-20 space-y-16 min-h-[290mm]">
+              <h2 className="text-5xl font-black border-b-8 border-slate-900 pb-6 uppercase tracking-tighter">03. 최종 성찰 및 리포트 요약</h2>
+              <div className="space-y-12">
+                <div className="p-16 bg-indigo-600 text-white rounded-[72px] shadow-2xl">
+                  <h3 className="text-xs font-black text-indigo-300 mb-6 uppercase tracking-widest">[Final Thesis / Claim]</h3>
+                  <p className="text-4xl font-black leading-tight">{sessionData.s8_claim}</p>
                 </div>
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Knowledge Depth]</h3>
-                  <p className="whitespace-pre-wrap text-lg leading-relaxed">{sessionData.s3_depth}</p>
-                </div>
-                <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100">
-                  <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Interim Results]</h3>
-                  <p className="font-bold text-emerald-700 whitespace-pre-wrap">{sessionData.s5_result}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="page-break"></div>
-
-            {/* 4페이지: 최종 성찰 및 생활기록부 */}
-            <div className="page space-y-12 p-10">
-              <h2 className="text-4xl font-black border-b-4 border-slate-900 pb-4">03. 최종 성찰 및 세특 요약</h2>
-              <div className="space-y-10">
-                <div className="p-10 bg-indigo-600 text-white rounded-[60px] shadow-xl">
-                  <h3 className="text-xs font-black text-white/50 mb-4 uppercase">[Final Claim]</h3>
-                  <p className="text-2xl font-black leading-tight whitespace-pre-wrap">{sessionData.s8_claim}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-10">
+                <div className="grid grid-cols-2 gap-16">
                   <div>
-                    <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Growth]</h3>
-                    <p className="text-lg font-bold whitespace-pre-wrap">{sessionData.s8_growth}</p>
+                    <h3 className="text-sm font-black text-slate-400 mb-4 uppercase border-b-2 pb-2 inline-block">[Growth & Insight]</h3>
+                    <p className="text-xl font-bold leading-relaxed whitespace-pre-wrap">{sessionData.s8_growth}</p>
                   </div>
                   <div>
-                    <h3 className="text-xs font-black text-slate-400 mb-2 uppercase">[Next Step]</h3>
-                    <p className="text-lg font-bold whitespace-pre-wrap">{sessionData.s8_next}</p>
+                    <h3 className="text-sm font-black text-slate-400 mb-4 uppercase border-b-2 pb-2 inline-block">[Further Research]</h3>
+                    <p className="text-xl font-bold leading-relaxed whitespace-pre-wrap">{sessionData.s8_next}</p>
                   </div>
                 </div>
-                <div className="mt-12 p-12 bg-slate-50 rounded-[70px] border-4 border-double border-indigo-200">
-                  <h3 className="text-2xl font-black text-indigo-900 mb-6">🎓 생활기록부 요약본 (FINAL SUMMARY)</h3>
-                  <p className="text-xl font-bold leading-relaxed whitespace-pre-wrap">
-                    {sessionData.s8_summary || "입력된 최종 요약본이 없습니다."}
+                <div className="mt-20 p-20 bg-slate-50 rounded-[80px] border-[10px] border-double border-indigo-200">
+                  <h3 className="text-3xl font-black text-indigo-950 mb-8 flex items-center gap-3">
+                    <i data-lucide="graduation-cap" className="w-10 h-10"></i> 생활기록부 최종 요약본
+                  </h3>
+                  <p className="text-2xl font-bold leading-loose whitespace-pre-wrap">
+                    {sessionData.s8_summary || "요약본이 생성되지 않았습니다."}
                   </p>
                 </div>
               </div>
             </div>
+
           </div>
-
         </div>
       );
     };
