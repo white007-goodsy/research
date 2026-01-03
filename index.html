@@ -153,7 +153,7 @@ const handleAskAI = async ({ promptText, systemText }) => {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
-        action: "askGemini",
+        action: "ask",
         prompt: promptText,
         system: systemText || ""
       }),
