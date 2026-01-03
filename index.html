@@ -150,15 +150,10 @@ const handleAskAI = async ({ promptText, systemText }) => {
   setAiResult("");
 
   try {
-    const response = await fetch(CONFIG.SCRIPT_URL, {
+    const res = await fetch(CONFIG.SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify({
-        action: "askGemini",                      // ✅ 서버와 일치
-        userKey: String(activeUserKey).trim(),    // ✅ 추가 (안전)
-        prompt: promptText,
-        system: systemText || ""
-      }),
+      body: JSON.stringify({ userKey: key, ...payload })
     });
 
     const text = await response.text();
