@@ -1151,13 +1151,82 @@ ${sessionData.s8_next || "(미입력)"}
             </main>
           </div>
 
-          {/* 인쇄 전용 레이아웃(원본 그대로 유지) */}
-         <div className="print-only bg-white text-slate-900 p-0 m-0 w-full">
-           {/* 인쇄 페이지들은 길어서, 여기서는 사용자가 올린 원본과 동일 구조로 유지한다고 가정합니다. */}
-           {/* 필요하면 인쇄 섹션 전체도 그대로 붙여드릴게요. */}
-         </div>
+{/* 인쇄 전용 레이아웃: 실제 종이에 출력되는 부분 */}
+<div className="print-only bg-white text-slate-900 p-0 m-0 w-full">
+  {/* 1페이지: 표지 */}
+  <div className="page p-20 flex flex-col justify-between h-[297mm] border-0">
+    <div className="mt-20">
+      <h1 className="text-5xl font-black tracking-tighter text-slate-900 mb-4">심화 탐구 통합 워크북</h1>
+      <p className="text-xl text-slate-500 font-bold tracking-[0.2em] uppercase">Advanced Research Workbook Report</p>
+    </div>
 
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-10 border-t-4 border-slate-900 pt-10">
+        <div>
+          <p className="text-sm font-black text-slate-400 mb-2">SCHOOL</p>
+          <p className="text-2xl font-black">{studentInfo.school || "미입력"}</p>
         </div>
+        <div>
+          <p className="text-sm font-black text-slate-400 mb-2">MAJOR</p>
+          <p className="text-2xl font-black">{studentInfo.major || "미입력"}</p>
+        </div>
+        <div>
+          <p className="text-sm font-black text-slate-400 mb-2">STUDENT ID</p>
+          <p className="text-2xl font-black">{studentInfo.gradeClass || "미입력"}</p>
+        </div>
+        <div>
+          <p className="text-sm font-black text-slate-400 mb-2">NAME</p>
+          <p className="text-2xl font-black">{studentInfo.name || "미입력"}</p>
+        </div>
+      </div>
+    </div>
+    <div className="text-right font-bold text-slate-400">발행일: {new Date().toLocaleDateString()}</div>
+  </div>
+
+  <div className="page-break"></div>
+
+  {/* 2페이지: 탐구 내용 요약 */}
+  <div className="page p-16 space-y-10">
+    <h2 className="text-3xl font-black border-b-2 border-slate-900 pb-4">01. 탐구 질문 및 동기</h2>
+    <div className="space-y-6">
+      <div>
+        <h3 className="font-black text-slate-400 text-xs mb-2 uppercase">[RESEARCH QUESTION]</h3>
+        <p className="text-xl font-bold bg-slate-50 p-6 rounded-xl border border-slate-200">{sessionData.s1_question}</p>
+      </div>
+      <div>
+        <h3 className="font-black text-slate-400 text-xs mb-2 uppercase">[MOTIVATION]</h3>
+        <p className="whitespace-pre-wrap leading-relaxed">{sessionData.s1_motive}</p>
+      </div>
+    </div>
+
+    <h2 className="text-3xl font-black border-b-2 border-slate-900 pb-4 mt-20">02. 핵심 데이터 및 주장</h2>
+    <div className="space-y-6">
+      <div className="bg-slate-900 text-white p-8 rounded-3xl">
+        <h3 className="font-black text-indigo-400 text-xs mb-4 uppercase">[FINAL CLAIM]</h3>
+        <p className="text-xl font-black leading-relaxed">{sessionData.s8_claim}</p>
+      </div>
+      <div>
+        <h3 className="font-black text-slate-400 text-xs mb-2 uppercase">[CORE FACT & DATA]</h3>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed">{sessionData.s4_fact}</p>
+      </div>
+    </div>
+  </div>
+
+  <div className="page-break"></div>
+
+  {/* 3페이지: 생활기록부 최종 요약 */}
+  <div className="page p-16">
+    <h2 className="text-3xl font-black border-b-2 border-slate-900 pb-4 mb-10">03. 생활기록부 기록 요약</h2>
+    <div className="bg-indigo-50 p-10 rounded-[40px] border-2 border-indigo-100 min-h-[400px]">
+      <p className="text-lg font-bold text-indigo-900 leading-[1.8] whitespace-pre-wrap">
+        {sessionData.s8_summary || "입력된 세특 요약 내용이 없습니다."}
+      </p>
+    </div>
+    <div className="mt-20 text-center">
+      <p className="text-slate-400 font-bold italic">위 탐구 내용은 본인의 지적 호기심을 바탕으로 성실히 수행되었음을 확인합니다.</p>
+    </div>
+  </div>
+</div>
       );
     };
 
