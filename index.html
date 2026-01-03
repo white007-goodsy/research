@@ -94,19 +94,18 @@
      * 시스템 설정 (CONFIG)
      * =========================
      * [중요] SCRIPT_URL은 본인이 배포한 GAS 웹 앱 URL로 교체해야 합니다.
-     * [모델 변경] 404 에러 시 여기서 모델명을 'gemini-pro' 또는 'gemini-1.5-flash-001'로 변경해보세요.
      */
     const CONFIG = {
-      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbz0MrQy9Rmhl5Ps1z-4zOVD6-Fs3L3vnCEwyO8R6MaexiL6Ns9vVClZZa7GpgsTGD73/exec", 
-      GEMINI_MODEL: "gemini-1.5-flash", 
-      APP_VERSION: "v4.2-ModelFix",
+      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzr1XC3kHgv8IuMcgr87UfaOw9CcBTil8JY4V0Zki57NwPSQ2yOO58nzM31t-PS9ISu/exec", 
+      GEMINI_MODEL: "gemini-2.5-flash", // ✅ gemini-2.5-flash 적용
+      APP_VERSION: "v5.0-Final",
       LOCAL_PREFIX: "master_serverB",
     };
 
     const EMPTY_STUDENT = { school: "", gradeClass: "", name: "", major: "" };
 
     const EMPTY_SESSION = {
-      s1_topic: "", // ✅ 탐구 주제 추가
+      s1_topic: "", // 탐구 주제 추가
       s1_motive: "", s1_question: "", s1_connection: "",
       s2_book: "", s2_author: "", s2_level: "전공 기초(개론)", s2_part: "", s2_goal: "학술 보고서",
       s3_depth: "", s3_trace: "",
@@ -186,7 +185,7 @@
               prompt: promptText,
               system: systemText,
               userKey: activeUserKey,
-              model: CONFIG.GEMINI_MODEL // [수정] 프론트엔드에서 모델명 전달
+              model: CONFIG.GEMINI_MODEL
             })
           });
 
@@ -205,70 +204,51 @@
           }
         } catch (err) {
           console.error("AI Error:", err);
-          
-          const errorMsg = (err.message || "").toString();
-
-          if (errorMsg.includes("Script Properties") || errorMsg.includes("API 키")) {
-            setAiResult(
-              "⚠️ [관리자 설정 필요] Google Apps Script에 API 키가 없습니다.\n\n" +
-              "💡 해결 방법:\n" +
-              "1. GAS 에디터 -> [프로젝트 설정(⚙️)]\n" +
-              "2. [스크립트 속성] -> [속성 추가]\n" +
-              "3. 이름: GEMINI_API_KEY / 값: (API 키)\n" +
-              "4. 저장 후 [새 배포] 필수"
-            );
-          } else if (errorMsg.includes("404") || errorMsg.includes("NOT_FOUND")) {
-             setAiResult(
-              `⚠️ [모델 오류] 설정된 모델(${CONFIG.GEMINI_MODEL})을 찾을 수 없습니다.\n\n` +
-              "💡 해결 방법:\n" +
-              "1. GAS 서버 코드(Code.gs)를 최신 코드로 업데이트 후 [새 배포] 하세요.\n" +
-              "2. 그래도 안 되면 index.html의 CONFIG.GEMINI_MODEL을 'gemini-pro'로 변경해보세요."
-            );
-          } else {
-            setAiResult(`⚠️ 오류 발생: ${errorMsg}`);
-          }
+          setAiResult(`⚠️ 오류 발생: ${err.message}`);
         } finally {
           setAiLoading(false);
         }
       };
 
-      // 탭별 맞춤 프롬프트 생성기 (간결한 답변 유도)
+      // AI 튜터 프롬프트 (간결함 강조)
       const handleAiConsult = () => {
         const system = 
-          "너는 고등학생의 심화 탐구를 돕는 입시 전문 컨설턴트다.\n" +
-          "**답변 원칙:**\n" +
-          "1. **절대 길게 쓰지 마라.** 300자 이내로 핵심만 타격하라.\n" +
-          "2. 서론(안녕하세요 등)과 결론(화이팅 등)을 모두 삭제하라.\n" +
-          "3. 줄글 대신 **개조식(Bullet points)**을 사용하여 가독성을 높여라.\n" +
-          "4. 학생이 입력한 내용에 대한 **구체적인 평가**를 먼저 제시하고, 그 다음 **구체적인 개선안**을 제시하라.";
+          "너는 고등학생의 입시를 돕는 컨설턴트다. **무조건 핵심만 3가지로 요약하라.**\n" +
+          "1. 서론, 결론, 인사말 절대 금지.\n" +
+          "2. 문장은 명사형으로 종결 (예: ~함, ~것).\n" +
+          "3. 학생의 입력 내용에 대해 구체적으로 피드백할 것.";
 
         let prompt = "";
 
         switch(activeTab) {
           case 1:
-            prompt = `[학생 희망전공: ${studentInfo.major}]\n` +
-                     `[현재 탐구 주제: ${sessionData.s1_topic}]\n` +
-                     `[현재 탐구 질문: ${sessionData.s1_question}]\n\n` +
-                     `위 내용을 평가하라. 질문이 전공과 적합한가? 주제가 너무 광범위하지 않은가? ` +
-                     `더 날카롭고 검증 가능한 '학술적 질문'으로 다듬어서 3가지 대안을 제시하라.`;
+            prompt = `[희망전공: ${studentInfo.major}]\n` +
+                     `[주제: ${sessionData.s1_topic}]\n` +
+                     `[질문: ${sessionData.s1_question}]\n` +
+                     `위 내용을 바탕으로 **더 학술적인 탐구 주제와 질문**을 3가지 제안해줘. (간결하게)`;
             break;
           case 2:
-            prompt = `[도서명: ${sessionData.s2_book}]\n[목표: ${sessionData.s2_goal}]\n이 책을 활용하여 ${studentInfo.major} 전공과 관련된 심화 탐구 계획을 세워줘. 핵심 챕터 3가지를 추천해줘.`;
+            prompt = `[도서명: ${sessionData.s2_book}]\n[주제: ${sessionData.s1_topic}]\n` +
+                     `이 책에서 **탐구 주제와 연결하여 반드시 읽어야 할 핵심 키워드** 3가지를 추천해줘.`;
             break;
           case 3:
-            prompt = `[도서 심화 내용: ${sessionData.s3_depth}]\n이 내용을 바탕으로 교과서 개념과 연결된 학술적 원리를 설명하고 추가로 읽어볼만한 논문 키워드 3개를 추천해줘.`;
+            prompt = `[심화 내용: ${sessionData.s3_depth}]\n` +
+                     `이 내용을 **교과서 개념과 연결하여 설명하는 문장** 3개를 작성해줘.`;
             break;
           case 4:
-            prompt = `[키워드: ${sessionData.s4_keyword}]\n[핵심 데이터: ${sessionData.s4_fact}]\n이 데이터를 근거로 활용하여 탐구 보고서 본문에 들어갈 논리적인 문단(주장-근거-설명)을 3개 작성해줘.`;
+            prompt = `[데이터: ${sessionData.s4_fact}]\n` +
+                     `이 데이터를 보고서에 쓸 수 있게 **주장-근거-해석 구조의 짧은 문장** 3개로 변환해줘.`;
             break;
           case 5:
-            prompt = `[수행 기록: ${sessionData.s5_log}]\n[실패 기록: ${sessionData.s5_error}]\n이 과정에서 드러난 학생의 문제해결 역량을 평가하고, 다음 단계에서 보완해야 할 점을 조언해줘.`;
+            prompt = `[수행: ${sessionData.s5_log}]\n[실패: ${sessionData.s5_error}]\n` +
+                     `이 과정에서 드러난 **학생의 문제해결 역량**을 생활기록부용 표현으로 3줄 요약해줘.`;
             break;
           case 8:
-            prompt = `[최종주장: ${sessionData.s8_claim}]\n[성장점: ${sessionData.s8_growth}]\n[후속탐구: ${sessionData.s8_next}]\n이 내용을 종합하여 생활기록부 세부능력 및 특기사항(세특)에 들어갈 만한 500자 내외의 요약글을 작성해줘.`;
+            prompt = `[주장: ${sessionData.s8_claim}]\n[성장: ${sessionData.s8_growth}]\n` +
+                     `이 내용을 **세특(세부능력 및 특기사항)에 그대로 넣을 수 있는 3문장**으로 요약해줘. 미사여구 제외.`;
             break;
           default:
-            prompt = `현재 탐구의 ${activeTab}단계입니다. 학생이 더 깊이 있는 탐구를 위해 점검해야 할 체크리스트 5가지를 알려줘.`;
+            prompt = `현재 단계(${activeTab})에서 학생이 **놓치지 말아야 할 체크리스트** 3가지만 알려줘.`;
         }
         handleAskAI({ promptText: prompt, systemText: system });
       };
@@ -389,7 +369,7 @@
       return (
         <div className="flex flex-col min-h-screen relative">
           
-          {/* 로그인 화면 (isLoggedIn false일 때) */}
+          {/* 로그인 화면 */}
           {!isLoggedIn && (
             <div className="fixed inset-0 z-[1000] bg-slate-900 flex items-center justify-center p-6">
               <div className="w-full max-w-md bg-white rounded-[48px] p-12 shadow-2xl fade-in text-center border border-white/20">
@@ -421,7 +401,7 @@
             </div>
           )}
 
-          {/* 메인 UI (로그인 후) */}
+          {/* 메인 UI */}
           <div className="no-print flex-grow flex flex-col">
             
             {/* 상단바 */}
@@ -462,7 +442,7 @@
               ))}
             </nav>
 
-            {/* 메인 컨텐츠 영역 */}
+            {/* 메인 컨텐츠 */}
             <main className="flex-grow p-4 md:p-10 bg-slate-50">
               <div className="max-w-6xl mx-auto pb-32">
                 
@@ -573,7 +553,7 @@
                         </button>
                       </div>
                       <div className="space-y-10 flex-grow">
-                        {/* 탐구 주제 입력 추가 */}
+                        {/* ✅ [추가] 탐구 주제 입력 필드 */}
                         <div className="space-y-4">
                           <Label>탐구 주제 (가제)</Label>
                           <input
