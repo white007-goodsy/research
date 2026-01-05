@@ -37,11 +37,17 @@
     }
 
     @media print {
-      @page { size: A4; margin: 14mm; }
+      /* 1) 용지/여백 */
+      @page {
+        size: A4;
+        margin: 14mm 14mm 14mm 14mm; /* 필요시 10~18mm 조절 */
+      }
 
+      /* 2) 화면용 UI 제거 */
       .no-print { display: none !important; }
       .print-only { display: block !important; }
 
+      /* 3) 인쇄 기본 타이포 */
       html, body {
         background: #fff !important;
         -webkit-print-color-adjust: exact;
@@ -50,8 +56,10 @@
         color: #111827 !important;
       }
 
+      /* 4) 페이지 컨테이너 규격: A4 내부 폭에 맞추기 */
       .print-root { width: 100%; }
 
+      /* 5) “페이지” 단위로 강제 분리 */
       .print-page {
         page-break-after: always;
         break-after: page;
@@ -62,14 +70,19 @@
         break-after: auto;
       }
 
-      .avoid-break, .print-card, .print-block {
+      /* 6) 중간 잘림 방지(매우 중요) */
+      .avoid-break,
+      .print-card,
+      .print-block {
         break-inside: avoid;
         page-break-inside: avoid;
       }
 
+      /* 7) 과한 그림자/테두리 제거 */
       .shadow-xl, .shadow-2xl, .shadow-lg, .shadow-sm { box-shadow: none !important; }
       .border-double { border-style: solid !important; }
 
+      /* 8) 폰트 크기 인쇄용으로 다운스케일 */
       .print-title { font-size: 26pt !important; line-height: 1.15 !important; font-weight: 900 !important; }
       .print-subtitle { font-size: 12pt !important; letter-spacing: 0.08em !important; color: #6b7280 !important; }
       .print-h2 { font-size: 16pt !important; font-weight: 900 !important; margin: 0 0 10mm 0 !important; }
@@ -77,6 +90,7 @@
       .print-body { font-size: 11pt !important; line-height: 1.55 !important; }
       .print-small { font-size: 9.5pt !important; line-height: 1.5 !important; color: #374151 !important; }
 
+      /* 9) 표/리스트 깔끔하게 */
       ul, ol { margin: 0; padding-left: 18px; }
       li { margin: 2mm 0; }
     }
@@ -104,6 +118,9 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
+    // =========================================
+    // 1. 설정 및 상수 (CONFIG)
+    // =========================================
     const CONFIG = {
       SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxwuXwRhsb2f9XYd4b-XHTj6xgT865-orVv7IxiddjidgFUw9mINJsGydzhbKlkiVxp/exec",
       GEMINI_MODEL: "gemini-2.5-flash",
@@ -134,6 +151,9 @@
       { id: 8, title: "8~10차시: 성찰", icon: "graduation-cap", color: "bg-indigo-600" },
     ];
 
+    // =========================================
+    // 2. 공통 UI 컴포넌트
+    // =========================================
     const Label = ({ children }) => (
       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block mb-2">
         {children}
@@ -144,7 +164,11 @@
       <div className="space-y-2">
         {label && <Label>{label}</Label>}
         <input
-          type={type} name={name} value={value} onChange={onChange} placeholder={placeholder}
+          type={type}
+          name={name}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
           className="w-full p-6 rounded-3xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-xl transition-all shadow-sm"
         />
       </div>
@@ -154,12 +178,18 @@
       <div className="space-y-2">
         {label && <Label>{label}</Label>}
         <textarea
-          name={name} value={value} onChange={onChange} placeholder={placeholder}
+          name={name}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
           className={`w-full ${height} p-6 rounded-[32px] ${bgColor} ${textColor} border-none outline-none font-medium text-base leading-relaxed resize-none shadow-inner`}
         />
       </div>
     );
 
+    // =========================================
+    // 3. 서브 컴포넌트
+    // =========================================
     const LoginScreen = ({ personalCode, setPersonalCode, handleLogin, serverStatus }) => (
       <div className="fixed inset-0 z-[1000] bg-slate-900 flex items-center justify-center p-6">
         <div className="w-full max-w-md bg-white rounded-[48px] p-12 shadow-2xl fade-in text-center border border-white/20">
@@ -191,7 +221,9 @@
     const Header = ({ serverStatus, handleSaveAll, handleLogout }) => (
       <header className="bg-slate-900 text-white p-5 px-8 flex justify-between items-center sticky top-0 z-50 shadow-2xl">
         <div className="flex items-center gap-4">
-          <div className="bg-indigo-500 p-2.5 rounded-2xl shadow-lg"><i data-lucide="zap" className="w-5 h-5"></i></div>
+          <div className="bg-indigo-500 p-2.5 rounded-2xl shadow-lg">
+            <i data-lucide="zap" className="w-5 h-5"></i>
+          </div>
           <div>
             <h1 className="text-xl font-black tracking-tighter leading-none">심화 탐구 통합 워크북</h1>
             <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.3em] mt-1.5">v6.5 Full Restored</p>
@@ -199,13 +231,22 @@
         </div>
         <div className="flex gap-2.5 items-center">
           {serverStatus && <span className="text-[10px] font-black bg-white/5 border border-white/10 px-4 py-2 rounded-xl">{serverStatus}</span>}
-          <button onClick={handleSaveAll} className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg transition-all active:scale-95">
+          <button
+            onClick={handleSaveAll}
+            className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg transition-all active:scale-95"
+          >
             <i data-lucide="save" className="w-3.5 h-3.5"></i> 서버 저장
           </button>
-          <button onClick={() => window.print()} className="bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-white/5 active:scale-95 transition-all">
+          <button
+            onClick={() => window.print()}
+            className="bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-white/5 active:scale-95 transition-all"
+          >
             <i data-lucide="printer" className="w-3.5 h-3.5"></i> 인쇄
           </button>
-          <button onClick={handleLogout} className="bg-rose-600 hover:bg-rose-500 px-5 py-2.5 rounded-2xl text-xs font-black active:scale-95 transition-all">
+          <button
+            onClick={handleLogout}
+            className="bg-rose-600 hover:bg-rose-500 px-5 py-2.5 rounded-2xl text-xs font-black active:scale-95 transition-all"
+          >
             로그아웃
           </button>
         </div>
@@ -213,7 +254,7 @@
     );
 
     const TabNavigation = ({ activeTab, setActiveTab, setAiResult }) => (
-      <nav className="bg-white border-b flex gap-1.5 overflow-x-auto p-3 px-6 scrollbar-hide sticky top-[76px] z-40 shadow-sm">
+      <nav className="bg-white border-b flex gap-1.5 overflow-x-auto p-3 px-6 scrollbar-hide sticky top="[76px] z-40 shadow-sm">
         {TABS.map(tab => (
           <button
             key={tab.id}
@@ -232,21 +273,30 @@
       (loading || result) ? (
         <div className="mb-10 bg-white border-2 border-indigo-100 rounded-[40px] p-10 shadow-2xl border-l-[16px] border-l-indigo-600 fade-in">
           <div className="flex items-center justify-between mb-6 pb-6 border-b">
-            <div className="flex items-center gap-3 text-indigo-600 font-black text-lg"><i data-lucide="sparkles" className="w-6 h-6"></i> AI 튜터의 탐구 정밀 진단</div>
-            <button onClick={onClose} className="text-slate-300 hover:text-slate-900"><i data-lucide="x" className="w-6 h-6"></i></button>
+            <div className="flex items-center gap-3 text-indigo-600 font-black text-lg">
+              <i data-lucide="sparkles" className="w-6 h-6"></i> AI 튜터의 탐구 정밀 진단
+            </div>
+            <button onClick={onClose} className="text-slate-300 hover:text-slate-900">
+              <i data-lucide="x" className="w-6 h-6"></i>
+            </button>
           </div>
           {loading ? (
             <div className="flex flex-col items-center py-10">
               <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-6"></div>
-              <p className="text-base font-bold text-slate-500 tracking-tight">학생의 데이터를 분석하여 개조식 정리를 구성하고 있습니다...</p>
+              <p className="text-base font-bold text-slate-500 tracking-tight">학생의 데이터를 학술적으로 분석하여 처방을 구성하고 있습니다...</p>
             </div>
           ) : (
-            <div className="text-base font-medium leading-relaxed whitespace-pre-wrap text-slate-800 bg-slate-50 p-8 rounded-3xl border border-slate-100 shadow-inner">{result}</div>
+            <div className="text-base font-medium leading-relaxed whitespace-pre-wrap text-slate-800 bg-slate-50 p-8 rounded-3xl border border-slate-100 shadow-inner">
+              {result}
+            </div>
           )}
         </div>
       ) : null
     );
 
+    // =========================================
+    // TabContent
+    // =========================================
     const TabContent = ({ activeTab, studentInfo, sessionData, handleStudent, handleInput, handleAiConsult, aiLoading }) => {
       const SectionHeader = ({ title, subTitle, btnText, onBtnClick }) => (
         <div className="flex justify-between items-center border-b pb-8 mb-8">
@@ -255,14 +305,18 @@
             {subTitle && <p className="text-slate-400 font-bold mt-1 text-xs uppercase">{subTitle}</p>}
           </div>
           {btnText && (
-            <button onClick={onBtnClick} disabled={aiLoading} className="btn-ai-glow text-white px-8 py-4 rounded-3xl text-sm font-black flex items-center gap-2 active:scale-95 shadow-2xl">
+            <button
+              onClick={onBtnClick}
+              disabled={aiLoading}
+              className="btn-ai-glow text-white px-8 py-4 rounded-3xl text-sm font-black flex items-center gap-2 active:scale-95 shadow-2xl"
+            >
               <i data-lucide="sparkles" className="w-5 h-5 text-amber-300"></i> {btnText}
             </button>
           )}
         </div>
       );
 
-      switch(activeTab) {
+      switch (activeTab) {
         case 0: return (
           <div className="space-y-12 fade-in">
             <SectionHeader title="정보 입력" subTitle="Personal Profile" />
@@ -277,6 +331,7 @@
             </div>
           </div>
         );
+
         case 11: return (
           <div className="space-y-10 fade-in">
             <h2 className="text-4xl font-black text-amber-600 flex items-center gap-4">
@@ -310,6 +365,7 @@
             </div>
           </div>
         );
+
         case 1: return (
           <div className="fade-in space-y-10">
             <SectionHeader title="1차시: 주제 & 질문" subTitle="Research Topic & Question" btnText="AI 주제 정교화" onBtnClick={handleAiConsult} />
@@ -321,6 +377,7 @@
             </div>
           </div>
         );
+
         case 2: return (
           <div className="fade-in space-y-10">
             <SectionHeader title="2차시: 도서 및 탐구 계획" btnText="AI 키워드 추출" onBtnClick={handleAiConsult} />
@@ -343,6 +400,7 @@
             <InputField label="집중 탐독 지점 (발췌독 챕터)" name="s2_part" value={sessionData.s2_part} onChange={handleInput} placeholder="예: 제3장 데이터 리터러시의 실제적 적용 사례" />
           </div>
         );
+
         case 3: return (
           <div className="fade-in space-y-10">
             <SectionHeader title="3차시: 도서 심화 분석" btnText="지식 정교화 코칭" onBtnClick={handleAiConsult} />
@@ -350,6 +408,7 @@
             <InputField label="추가 자료 추적" name="s3_trace" value={sessionData.s3_trace} onChange={handleInput} placeholder="책에서 언급된 논문이나 다른 도서 리스트" />
           </div>
         );
+
         case 4: return (
           <div className="fade-in space-y-10">
             <SectionHeader title="4차시: 논문 데이터 분석" subTitle="Scholarly Evidence & Facts" btnText="AI 주근설 문장 생성" onBtnClick={handleAiConsult} />
@@ -357,27 +416,36 @@
             <TextAreaField label="핵심 숫자와 팩트 (Core Evidence)" name="s4_fact" value={sessionData.s4_fact} onChange={handleInput} height="h-64" bgColor="bg-indigo-50/30" textColor="text-indigo-900" placeholder="보고서의 근거가 될 통계 수치, 실험 결과, 표의 데이터 등을 출처와 함께 기록하세요." />
           </div>
         );
+
         case 13: return (
           <div className="space-y-12 fade-in">
             <h2 className="text-4xl font-black text-indigo-600 tracking-tighter">📊 탐구 방법론 마스터 가이드</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-indigo-50 p-10 rounded-[48px] border-2 border-indigo-100 shadow-sm relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform"><i data-lucide="database" className="w-20 h-20"></i></div>
+                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform">
+                  <i data-lucide="database" className="w-20 h-20"></i>
+                </div>
                 <h3 className="font-black text-indigo-900 text-2xl mb-4">① 데이터 재해석형</h3>
                 <p className="text-sm text-indigo-800 leading-relaxed font-bold">공공데이터나 통계 수치를 새로운 가설로 연결하여 시각화하고 분석합니다.</p>
               </div>
               <div className="bg-emerald-50 p-10 rounded-[48px] border-2 border-emerald-100 shadow-sm relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform"><i data-lucide="shuffle" className="w-20 h-20"></i></div>
+                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform">
+                  <i data-lucide="shuffle" className="w-20 h-20"></i>
+                </div>
                 <h3 className="font-black text-emerald-900 text-2xl mb-4">② 사례 비교형</h3>
                 <p className="text-sm text-emerald-800 leading-relaxed font-bold">동일한 변인을 가진 다른 사례 A와 B를 대조하여 차이의 원인을 탐구합니다.</p>
               </div>
               <div className="bg-rose-50 p-10 rounded-[48px] border-2 border-rose-100 shadow-sm relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform"><i data-lucide="test-tube" className="w-20 h-20"></i></div>
+                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform">
+                  <i data-lucide="test-tube" className="w-20 h-20"></i>
+                </div>
                 <h3 className="font-black text-rose-900 text-2xl mb-4">③ 가설 실험형</h3>
                 <p className="text-sm text-rose-800 leading-relaxed font-bold">특정 변인을 통제한 상태에서 실험을 수행하고 예측값과 실제값을 비교합니다.</p>
               </div>
               <div className="bg-amber-50 p-10 rounded-[48px] border-2 border-amber-100 shadow-sm relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform"><i data-lucide="pen-tool" className="w-20 h-20"></i></div>
+                <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform">
+                  <i data-lucide="pen-tool" className="w-20 h-20"></i>
+                </div>
                 <h3 className="font-black text-amber-900 text-2xl mb-4">④ 이론 적용형</h3>
                 <p className="text-sm text-amber-800 leading-relaxed font-bold">추상적인 전공 이론을 실제 사회 현상이나 기업 사례에 대입하여 분석합니다.</p>
               </div>
@@ -388,6 +456,7 @@
             </div>
           </div>
         );
+
         case 5: return (
           <div className="fade-in space-y-10">
             <SectionHeader title="5~7차시: 수행 및 노력 기록" subTitle="Action Log & Failure Record" btnText="수행 코칭 요청" onBtnClick={handleAiConsult} />
@@ -396,6 +465,7 @@
             <TextAreaField label="중간 산출물 (Interim Result)" name="s5_result" value={sessionData.s5_result} onChange={handleInput} height="h-32" bgColor="bg-emerald-50/50" textColor="text-emerald-900" placeholder="도출된 표, 그래프의 수치나 핵심 중간 결론을 적으세요." />
           </div>
         );
+
         case 12: return (
           <div className="space-y-12 fade-in text-center py-16">
             <div className="bg-rose-50 p-16 rounded-[80px] border-4 border-rose-100 max-w-3xl mx-auto shadow-2xl">
@@ -412,6 +482,7 @@
             </div>
           </div>
         );
+
         case 8: return (
           <div className="fade-in space-y-10">
             <SectionHeader title="8~10차시: 성찰 및 최종 요약" subTitle="Synthesis & Final Portfolio" btnText="AI 세특 초안 완성" onBtnClick={handleAiConsult} />
@@ -421,18 +492,32 @@
               <TextAreaField label="후속 탐구 제언" name="s8_next" value={sessionData.s8_next} onChange={handleInput} height="h-40" placeholder="한계점과 다음 연구 방향" />
             </div>
             <div className="p-12 bg-slate-900 text-white rounded-[64px] shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-10 opacity-10"><i data-lucide="graduation-cap" className="w-40 h-40 text-indigo-400"></i></div>
+              <div className="absolute top-0 right-0 p-10 opacity-10">
+                <i data-lucide="graduation-cap" className="w-40 h-40 text-indigo-400"></i>
+              </div>
               <Label><span className="text-indigo-400">🎓 생활기록부 요약본 (FINAL SUMMARY)</span></Label>
-              <textarea name="s8_summary" value={sessionData.s8_summary} onChange={handleInput} className="w-full h-72 bg-transparent border-none outline-none text-xl font-black leading-relaxed mt-6 resize-none scrollbar-hide relative z-10" placeholder="[동기-과정-성장-후속] 구조로 10차시 여정을 500자 이내로 완결하세요." />
+              <textarea
+                name="s8_summary"
+                value={sessionData.s8_summary}
+                onChange={handleInput}
+                className="w-full h-72 bg-transparent border-none outline-none text-xl font-black leading-relaxed mt-6 resize-none scrollbar-hide relative z-10"
+                placeholder="[동기-과정-성장-후속] 구조로 10차시 여정을 500자 이내로 완결하세요."
+              />
             </div>
           </div>
         );
-        default: return <div className="p-10 text-center font-bold text-slate-400">선택된 탭의 내용이 없습니다.</div>;
+
+        default:
+          return <div className="p-10 text-center font-bold text-slate-400">선택된 탭의 내용이 없습니다.</div>;
       }
     };
 
+    // =========================================
+    // PrintView (딱 1개만)
+    // =========================================
     const PrintView = ({ studentInfo, sessionData, issueDate }) => (
       <div className="print-only print-root">
+        {/* PAGE 1: 표지 */}
         <section className="print-page">
           <div className="avoid-break">
             <div className="print-label">Research Workbook</div>
@@ -454,6 +539,7 @@
           </div>
         </section>
 
+        {/* PAGE 2: 탐구 설계 */}
         <section className="print-page">
           <h2 className="print-h2">01. 탐구 설계 및 배경</h2>
 
@@ -481,6 +567,7 @@
           </div>
         </section>
 
+        {/* PAGE 3: 근거/수행 */}
         <section className="print-page">
           <h2 className="print-h2">02. 데이터 분석 및 수행 과정</h2>
 
@@ -506,6 +593,7 @@
           </div>
         </section>
 
+        {/* PAGE 4: 성찰/세특 */}
         <section className="print-page">
           <h2 className="print-h2">03. 최종 성찰 및 요약</h2>
 
@@ -535,6 +623,9 @@
       </div>
     );
 
+    // =========================================
+    // 4. 메인 App
+    // =========================================
     const App = () => {
       const [personalCode, setPersonalCode] = useState("");
       const [activeUserKey, setActiveUserKey] = useState("");
@@ -563,22 +654,25 @@
 
       useEffect(() => { setTimeout(refreshIcons, 100); }, [activeTab, aiResult, isLoggedIn]);
 
+      // 로그인(JSONP) - 로드 후 script 제거 + 콜백 정리
       const handleLogin = async () => {
         const code = personalCode.trim();
         if (!code) return setServerStatus("코드를 입력하세요.");
         setServerStatus("데이터 확인 중...");
 
-        const cb = `cb_${Date.now()}`;
-        let script = null;
-
         try {
-          const res = await new Promise((resolve, reject) => {
-            window[cb] = (data) => resolve(data);
+          const cb = `cb_${Date.now()}`;
 
-            script = document.createElement("script");
+          const res = await new Promise((resolve, reject) => {
+            window[cb] = (data) => {
+              resolve(data);
+              try { delete window[cb]; } catch(_) {}
+            };
+
+            const script = document.createElement("script");
             script.src = `${CONFIG.SCRIPT_URL}?userKey=${encodeURIComponent(code)}&callback=${cb}&nocache=${Date.now()}`;
-            script.onload = () => {};
-            script.onerror = () => reject(new Error("서버 연결 실패"));
+            script.onload = () => { script.remove(); };
+            script.onerror = () => { script.remove(); reject(new Error("서버 연결 실패")); };
             document.body.appendChild(script);
           });
 
@@ -613,19 +707,16 @@
         } catch (e) {
           setServerStatus("⚠️ 네트워크 오류");
           console.error(e);
-        } finally {
-          // cleanup
-          try { if (script) script.remove(); } catch(_) {}
-          try { delete window[cb]; } catch(_) {}
         }
       };
 
+      // 저장 - Upsert 결과: updated/appended 중 하나가 옴
       const handleSaveAll = async () => {
         if (!isLoggedIn || !activeUserKey) return alert("로그인 필요");
         setServerStatus("저장 중...");
 
         try {
-          // sessionData 먼저, studentInfo를 마지막에 (덮어쓰기 안전)
+          // studentInfo를 마지막에 두어 덮어쓰기 안전
           const payload = { userKey: activeUserKey, ...sessionData, ...studentInfo };
 
           const res = await fetch(CONFIG.SCRIPT_URL, {
@@ -678,7 +769,7 @@
           catch (_) { throw new Error("AI 응답이 JSON이 아닙니다:\n" + text.slice(0, 300)); }
 
           if (json.ok) setAiResult(json.answer || "응답 없음");
-          else throw new Error(json.error || "AI 실패");
+          else throw new Error(json.error);
 
         } catch(e) {
           setAiResult("오류: " + e.message);
@@ -687,41 +778,40 @@
         }
       };
 
-      // ✅ [FIX] handleAiConsult 단일 선언 + 개조식 프롬프트
+      // ✅ (중요) handleAiConsult 중복선언/중첩 제거한 '정상' 버전
       const handleAiConsult = () => {
-        const system = [
-          "역할: 고등학교 학생용 탐구 코치.",
-          "목표: 학생 입력을 '개조식'으로 명확하고 이해하기 쉽게 정리/개선.",
-          "",
-          "[출력 형식 고정]",
-          "- 반드시 번호 개조식: (1) (2) (3) ...",
-          "- 각 항목 1~2문장, 한 항목 80자 내외 권장.",
-          "- 불필요한 수식어 삭제, 핵심어를 문장 앞에 배치.",
-          "- 학생이 그대로 붙여넣어도 자연스러운 문장.",
-          "- 입력이 부족하면 마지막에 '추가로 적을 것(질문 3개)'.",
-          "- 과장/허위 금지. 입력에서 벗어난 사실 생성 금지.",
-          "- 문장 종결은 '~합니다'로 통일."
-        ].join("\n");
+        const system = `
+역할: 고등학교 학생용 탐구 코치.
+목표: 학생 입력을 개조식으로 명확하고 이해하기 쉽게 정리/개선.
+
+[출력 형식 고정]
+- 반드시 번호 개조식 (1) (2) (3) ...
+- 각 항목 1~2문장, 한 항목 80자 내외 권장.
+- 불필요한 수식어 삭제, 핵심어 앞배치.
+- 결과물은 학생이 그대로 붙여넣어도 자연스럽게.
+- 내용이 비어있거나 약하면 마지막에 "추가로 적을 것(질문 3개)" 포함.
+- 과장/허위 금지. 입력에서 벗어난 사실 생성 금지.
+        `;
 
         let prompt = "";
 
-        switch(activeTab) {
+        switch (activeTab) {
           case 1:
             prompt = `
 [전공] ${studentInfo.major}
-[탐구 주제(가제)] ${sessionData.s1_topic}
+[탐구 주제] ${sessionData.s1_topic}
 [동기] ${sessionData.s1_motive}
-[핵심 질문(RQ)] ${sessionData.s1_question}
+[핵심 질문] ${sessionData.s1_question}
 [교과/전공 연결] ${sessionData.s1_connection}
 
-위 내용을 아래 형식으로 개조식으로 다시 작성합니다.
-(1) 주제: 한 줄 정의합니다.
-(2) 동기: 사건/경험/문제의식 중심 2줄로 씁니다.
-(3) 연구질문: RQ 1개 + 하위질문 2개를 씁니다.
-(4) 연결 키워드: 교과 개념/전공 개념 키워드 3개를 씁니다.
-(5) 범위/대상/변인: 있으면 3줄로 정리합니다.
-- 각 항목은 "[핵심어] 내용" 형태로 시작합니다.
-`.trim();
+(1) 주제(한 줄 정의)
+(2) 동기(경험/문제의식 중심 2줄)
+(3) 연구질문(RQ) 1개 + 하위질문 2개
+(4) 교과 개념/전공 개념 연결 3개 키워드
+(5) 탐구 범위/대상/변인(있으면) 3줄
+- 각 항목은 "[핵심어] 내용" 형태로 시작
+- 문장 끝은 "~합니다"로 통일
+            `;
             break;
 
           case 2:
@@ -732,57 +822,55 @@
 [집중 챕터/부분] ${sessionData.s2_part}
 [최종 산출물] ${sessionData.s2_goal}
 
-위 계획을 학생용 개조식으로 정리합니다.
-(1) 선택 이유: 전공/주제 연결 중심으로 2줄로 씁니다.
-(2) 읽을 범위: 챕터/파트와 이유를 3줄로 씁니다.
-(3) 핵심 개념: 5개를 "키워드: 한 줄 설명"으로 씁니다.
-(4) 산출물 목차: 5개 항목으로 씁니다.
-(5) 다음 차시 체크리스트: 6개로 씁니다.
-- 각 항목은 "[핵심어] 내용" 형태로 시작합니다.
-`.trim();
+(1) 이 책을 선택한 이유(전공/주제 연결)
+(2) 읽을 범위(챕터/파트)와 이유
+(3) 책에서 뽑을 핵심 개념 5개(키워드+한 줄 설명)
+(4) 산출물(보고서/리포트 등) 목차 5개
+(5) 다음 차시 할 일 체크리스트 6개
+- 문장 끝은 "~합니다"로 통일
+            `;
             break;
 
           case 3:
             prompt = `
 [도서로 얻은 지식] ${sessionData.s3_depth}
-[추가 자료 추적] ${sessionData.s3_trace}
+[추가 자료] ${sessionData.s3_trace}
 
-위 내용을 개조식으로 재작성합니다.
-(1) 핵심 개념 5개: "개념: 한 줄 정의"로 씁니다.
-(2) 개념 연결 3개: 원인-결과/비교/구조로 씁니다.
-(3) 교과서 연결 3개: "교과 개념 → 도서 개념" 형태로 씁니다.
-(4) 인용/추적 자료: "자료명 - 필요한 이유"로 정리합니다.
-(5) 추가로 적을 것: 질문 3개를 씁니다.
-`.trim();
+(1) 핵심 개념 5개(한 줄 정의)
+(2) 개념 간 연결 3개(원인-결과/비교/구조)
+(3) 교과서 개념과 연결 3개(교과 → 도서)
+(4) 인용/추적 자료 목록(자료명-왜 필요한지)
+(5) 추가로 적을 것(질문 3개)
+            `;
             break;
 
           case 4:
             prompt = `
-[학술 트렌드/키워드] ${sessionData.s4_keyword}
+[트렌드/키워드] ${sessionData.s4_keyword}
 [핵심 숫자/팩트] ${sessionData.s4_fact}
 
-근거 중심 개조식으로 정리합니다.
-(1) 핵심 주장: 1문장으로 씁니다.
-(2) 근거 데이터 3개: "[수치/결과] - [출처] - [의미]"로 씁니다.
-(3) 해석 3줄: 왜 중요한지/무엇을 의미하는지 씁니다.
-(4) 한계/주의점 2개: 신뢰도/표본/조건 관점으로 씁니다.
-(5) 보고서 문장 3개: 짧고 명확하게 씁니다.
-`.trim();
+(1) 핵심 주장 1문장
+(2) 근거 데이터 3개: [수치/결과]-[출처]-[의미]
+(3) 해석 3줄
+(4) 한계/주의점 2개
+(5) 보고서에 바로 넣을 문장 3개
+- 문장 끝은 "~합니다"
+            `;
             break;
 
           case 5:
             prompt = `
-[수행/노력] ${sessionData.s5_log}
-[시행착오] ${sessionData.s5_error}
+[수행 기록] ${sessionData.s5_log}
+[실패 기록] ${sessionData.s5_error}
 [중간 산출물] ${sessionData.s5_result}
 
-과정 중심 개조식으로 정리합니다.
-(1) 타임라인 6줄: "날짜/행동/도구"로 씁니다.
-(2) 어려움 3개: "문제-원인-대안"으로 씁니다.
-(3) 중간 결과 3개: "결과-의미-다음 행동"으로 씁니다.
-(4) 역량 5개: 키워드 + 근거 1줄씩 씁니다.
-(5) 개선점 3개를 씁니다.
-`.trim();
+(1) 타임라인 6줄(날짜/행동/도구)
+(2) 어려움 3개: 문제-원인-대안
+(3) 중간 결과 3개: 결과-의미-다음 행동
+(4) 역량 키워드 5개 + 근거 1줄씩
+(5) 개선할 점 3개
+- 문장 끝은 "~합니다"
+            `;
             break;
 
           case 8:
@@ -792,27 +880,27 @@
 [후속 탐구] ${sessionData.s8_next}
 [세특 초안] ${sessionData.s8_summary}
 
-세특에 바로 쓰기 좋은 개조식으로 정리/개선합니다.
-(1) 한 줄 요약: 주제-방법-결론으로 씁니다.
-(2) 과정 5줄: 무엇을 어떻게 했는지 씁니다.
-(3) 근거/데이터 3줄을 씁니다.
-(4) 성장 3줄: 역량/태도 변화 중심으로 씁니다.
-(5) 후속 탐구 2줄을 씁니다.
-(6) 최종 세특 문장: 500자 이내로 작성합니다.
-`.trim();
+(1) 탐구 한 줄 요약(주제-방법-결론)
+(2) 과정 5줄
+(3) 근거/데이터 활용 3줄
+(4) 성장 3줄
+(5) 후속 탐구 2줄
+(6) 최종 세특 문장(500자 이내)
+- 과장 없이, 명확하게 "~합니다"
+            `;
             break;
 
           default:
             prompt = `
-현재 탭의 입력을 개조식으로 정리합니다.
-(1) 핵심 요약 3줄을 씁니다.
-(2) 좋은 점 2줄을 씁니다.
-(3) 보완점 3줄을 씁니다.
-(4) 다음 행동 체크리스트 5개를 씁니다.
-`.trim();
+(1) 핵심 요약 3줄
+(2) 좋은 점 2줄
+(3) 보완할 점 3줄
+(4) 다음 행동 체크리스트 5개
+- 문장 끝은 "~합니다"
+            `;
         }
 
-        handleAskAI({ promptText: prompt, systemText: system });
+        handleAskAI({ promptText: prompt.trim(), systemText: system.trim() });
       };
 
       const handleLogout = () => {
@@ -840,12 +928,24 @@
           )}
 
           <div className="no-print flex-grow flex flex-col">
-            <Header serverStatus={serverStatus} handleSaveAll={handleSaveAll} handleLogout={handleLogout} />
-            <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} setAiResult={setAiResult} />
+            <Header
+              serverStatus={serverStatus}
+              handleSaveAll={handleSaveAll}
+              handleLogout={handleLogout}
+            />
+            <TabNavigation
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              setAiResult={setAiResult}
+            />
 
             <main className="flex-grow p-4 md:p-10 bg-slate-50">
               <div className="max-w-6xl mx-auto pb-32">
-                <AiResultBox loading={aiLoading} result={aiResult} onClose={() => setAiResult("")} />
+                <AiResultBox
+                  loading={aiLoading}
+                  result={aiResult}
+                  onClose={() => setAiResult("")}
+                />
                 <div className="bg-white rounded-[56px] border border-slate-200 shadow-sm p-8 md:p-16 min-h-[700px] flex flex-col">
                   <TabContent
                     activeTab={activeTab}
