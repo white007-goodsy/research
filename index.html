@@ -23,7 +23,6 @@
     }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-    /* 로딩 화면 */
     #loading-screen {
       position: fixed; inset: 0; background: #0f172a; color: white;
       display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999;
@@ -31,23 +30,24 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* 애니메이션 */
     .fade-in { animation: fadeIn 0.4s ease-out; }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* ===== PRINT OVERRIDE (A4 최적화) ===== */
     @media print {
+      /* 1) 용지/여백 */
       @page {
         size: A4;
-        margin: 14mm 14mm 14mm 14mm;
+        margin: 14mm 14mm 14mm 14mm; /* 필요시 10~18mm 조절 */
       }
-
+    
+      /* 2) 화면용 UI 제거 */
       .no-print { display: none !important; }
       .print-only { display: block !important; }
-
+    
+      /* 3) 인쇄 기본 타이포 */
       html, body {
         background: #fff !important;
         -webkit-print-color-adjust: exact;
@@ -55,9 +55,13 @@
         font-family: "Noto Sans KR", system-ui, -apple-system, Segoe UI, Roboto, sans-serif !important;
         color: #111827 !important;
       }
-
-      .print-root { width: 100%; }
-
+    
+      /* 4) 페이지 컨테이너 규격: A4 내부 폭에 맞추기 */
+      .print-root {
+        width: 100%;
+      }
+    
+      /* 5) “페이지” 단위로 강제 분리 */
       .print-page {
         page-break-after: always;
         break-after: page;
@@ -67,30 +71,33 @@
         page-break-after: auto;
         break-after: auto;
       }
-
+    
+      /* 6) 중간 잘림 방지(매우 중요) */
       .avoid-break,
       .print-card,
       .print-block {
         break-inside: avoid;
         page-break-inside: avoid;
       }
-
+    
+      /* 7) 과한 그림자/테두리 제거 */
       .shadow-xl, .shadow-2xl, .shadow-lg, .shadow-sm { box-shadow: none !important; }
       .border-double { border-style: solid !important; }
-
+    
+      /* 8) 폰트 크기 인쇄용으로 다운스케일 */
       .print-title { font-size: 26pt !important; line-height: 1.15 !important; font-weight: 900 !important; }
       .print-subtitle { font-size: 12pt !important; letter-spacing: 0.08em !important; color: #6b7280 !important; }
       .print-h2 { font-size: 16pt !important; font-weight: 900 !important; margin: 0 0 10mm 0 !important; }
       .print-label { font-size: 9pt !important; font-weight: 800 !important; letter-spacing: 0.12em !important; color: #6b7280 !important; text-transform: uppercase; }
       .print-body { font-size: 11pt !important; line-height: 1.55 !important; }
       .print-small { font-size: 9.5pt !important; line-height: 1.5 !important; color: #374151 !important; }
-
+    
+      /* 9) 표/리스트 깔끔하게 */
       ul, ol { margin: 0; padding-left: 18px; }
       li { margin: 2mm 0; }
     }
     .print-only { display: none; }
 
-    /* 버튼 효과 */
     .btn-ai-glow {
       background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
       transition: all 0.3s ease;
@@ -101,13 +108,13 @@
     }
   </style>
 </head>
-
 <body>
   <div id="loading-screen">
     <div style="width:40px;height:40px;border:4px solid #6366f1;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px;"></div>
     <p style="font-weight:900;letter-spacing:2px;">SYSTEM LOADING...</p>
     <p style="font-size:12px;color:#94a3b8;margin-top:6px;">잠시만 기다려 주세요.</p>
   </div>
+
   <div id="root"></div>
 
   <script type="text/babel">
@@ -146,8 +153,6 @@
       { id: 8, title: "8~10차시: 성찰", icon: "graduation-cap", color: "bg-indigo-600" },
     ];
 
-    const makeLocalKey = (userKey, kind) => `${CONFIG.LOCAL_PREFIX}:${CONFIG.APP_VERSION}:${String(userKey).trim()}:${kind}`;
-
     // =========================================
     // 2. 공통 UI 컴포넌트
     // =========================================
@@ -160,7 +165,7 @@
     const InputField = ({ label, name, value, onChange, placeholder, type = "text" }) => (
       <div className="space-y-2">
         {label && <Label>{label}</Label>}
-        <input 
+        <input
           type={type} name={name} value={value} onChange={onChange} placeholder={placeholder}
           className="w-full p-6 rounded-3xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-xl transition-all shadow-sm"
         />
@@ -170,7 +175,7 @@
     const TextAreaField = ({ label, name, value, onChange, placeholder, height = "h-32", bgColor="bg-slate-50", textColor="text-slate-900" }) => (
       <div className="space-y-2">
         {label && <Label>{label}</Label>}
-        <textarea 
+        <textarea
           name={name} value={value} onChange={onChange} placeholder={placeholder}
           className={`w-full ${height} p-6 rounded-[32px] ${bgColor} ${textColor} border-none outline-none font-medium text-base leading-relaxed resize-none shadow-inner`}
         />
@@ -178,7 +183,7 @@
     );
 
     // =========================================
-    // 3. 서브 컴포넌트 정의
+    // 3. 서브 컴포넌트
     // =========================================
     const LoginScreen = ({ personalCode, setPersonalCode, handleLogin, serverStatus }) => (
       <div className="fixed inset-0 z-[1000] bg-slate-900 flex items-center justify-center p-6">
@@ -190,14 +195,20 @@
           </div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">개인 코드 로그인</h2>
           <p className="text-slate-500 mt-3 font-medium text-sm">기존 저장 데이터를 불러오거나 새로 시작합니다.</p>
-          <input 
-            value={personalCode} onChange={e => setPersonalCode(e.target.value)} 
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
+          <input
+            value={personalCode}
+            onChange={e => setPersonalCode(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleLogin()}
             className="mt-10 w-full p-6 rounded-3xl bg-slate-100 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-center text-2xl tracking-widest"
             placeholder="예: 20101홍길동"
           />
           {serverStatus && <p className="mt-4 text-xs font-bold text-indigo-600 bg-indigo-50 py-2 rounded-full">{serverStatus}</p>}
-          <button onClick={handleLogin} className="mt-8 w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all">시스템 접속</button>
+          <button
+            onClick={handleLogin}
+            className="mt-8 w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all"
+          >
+            시스템 접속
+          </button>
         </div>
       </div>
     );
@@ -219,7 +230,9 @@
           <button onClick={() => window.print()} className="bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-white/5 active:scale-95 transition-all">
             <i data-lucide="printer" className="w-3.5 h-3.5"></i> 인쇄
           </button>
-          <button onClick={handleLogout} className="bg-rose-600 hover:bg-rose-500 px-5 py-2.5 rounded-2xl text-xs font-black active:scale-95 transition-all">로그아웃</button>
+          <button onClick={handleLogout} className="bg-rose-600 hover:bg-rose-500 px-5 py-2.5 rounded-2xl text-xs font-black active:scale-95 transition-all">
+            로그아웃
+          </button>
         </div>
       </header>
     );
@@ -227,10 +240,13 @@
     const TabNavigation = ({ activeTab, setActiveTab, setAiResult }) => (
       <nav className="bg-white border-b flex gap-1.5 overflow-x-auto p-3 px-6 scrollbar-hide sticky top-[76px] z-40 shadow-sm">
         {TABS.map(tab => (
-          <button key={tab.id} onClick={() => { setActiveTab(tab.id); setAiResult(""); }} 
+          <button
+            key={tab.id}
+            onClick={() => { setActiveTab(tab.id); setAiResult(""); }}
             className={`flex-shrink-0 px-5 py-3 rounded-2xl border font-black text-[11px] flex items-center gap-2.5 transition-all ${
               activeTab === tab.id ? `${tab.color} text-white shadow-xl scale-105 ring-4 ring-indigo-50` : "bg-white text-slate-500 border-slate-100 hover:bg-slate-50"
-            }`}>
+            }`}
+          >
             <i data-lucide={tab.icon} className="w-3.5 h-3.5"></i> {tab.title}
           </button>
         ))}
@@ -257,7 +273,7 @@
     );
 
     // =========================================
-    // 4) TabContent
+    // TabContent
     // =========================================
     const TabContent = ({ activeTab, studentInfo, sessionData, handleStudent, handleInput, handleAiConsult, aiLoading }) => {
       const SectionHeader = ({ title, subTitle, btnText, onBtnClick }) => (
@@ -324,7 +340,7 @@
         );
         case 1: return (
           <div className="fade-in space-y-10">
-            <SectionHeader title="1차시: 주제 & 질문" subTitle="Research Topic & Question" btnText="AI 개조식 정리" onBtnClick={handleAiConsult} />
+            <SectionHeader title="1차시: 주제 & 질문" subTitle="Research Topic & Question" btnText="AI 주제 정교화" onBtnClick={handleAiConsult} />
             <div className="space-y-10">
               <InputField label="탐구 주제 (가제)" name="s1_topic" value={sessionData.s1_topic} onChange={handleInput} placeholder="예: 재생 에너지를 활용한 친환경 도시 설계 방안 연구" />
               <TextAreaField label="탐구 동기 및 계기" name="s1_motive" value={sessionData.s1_motive} onChange={handleInput} height="h-40" placeholder="수업 중 생긴 궁금증이나 사회적 사건 등 구체적인 동기를 작성하세요." />
@@ -335,7 +351,7 @@
         );
         case 2: return (
           <div className="fade-in space-y-10">
-            <SectionHeader title="2차시: 도서 및 탐구 계획" btnText="AI 개조식 정리" onBtnClick={handleAiConsult} />
+            <SectionHeader title="2차시: 도서 및 탐구 계획" btnText="AI 키워드 추출" onBtnClick={handleAiConsult} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
               <InputField label="심화 도서명" name="s2_book" value={sessionData.s2_book} onChange={handleInput} placeholder="책 제목" />
               <InputField label="저자" name="s2_author" value={sessionData.s2_author} onChange={handleInput} placeholder="저자명" />
@@ -357,14 +373,14 @@
         );
         case 3: return (
           <div className="fade-in space-y-10">
-            <SectionHeader title="3차시: 도서 심화 분석" btnText="AI 개조식 정리" onBtnClick={handleAiConsult} />
+            <SectionHeader title="3차시: 도서 심화 분석" btnText="지식 정교화 코칭" onBtnClick={handleAiConsult} />
             <TextAreaField label="교과서 너머의 지식 (Depth Analysis)" name="s3_depth" value={sessionData.s3_depth} onChange={handleInput} height="h-80" placeholder="도서를 통해 새롭게 알게 된 학술적 원리를 상세히 정리하세요." />
             <InputField label="추가 자료 추적" name="s3_trace" value={sessionData.s3_trace} onChange={handleInput} placeholder="책에서 언급된 논문이나 다른 도서 리스트" />
           </div>
         );
         case 4: return (
           <div className="fade-in space-y-10">
-            <SectionHeader title="4차시: 논문 데이터 분석" subTitle="Scholarly Evidence & Facts" btnText="AI 개조식 정리" onBtnClick={handleAiConsult} />
+            <SectionHeader title="4차시: 논문 데이터 분석" subTitle="Scholarly Evidence & Facts" btnText="AI 주근설 문장 생성" onBtnClick={handleAiConsult} />
             <TextAreaField label="최신 학술 트렌드/키워드" name="s4_keyword" value={sessionData.s4_keyword} onChange={handleInput} placeholder="논문들에서 공통적으로 다루는 핵심 문제의식" />
             <TextAreaField label="핵심 숫자와 팩트 (Core Evidence)" name="s4_fact" value={sessionData.s4_fact} onChange={handleInput} height="h-64" bgColor="bg-indigo-50/30" textColor="text-indigo-900" placeholder="보고서의 근거가 될 통계 수치, 실험 결과, 표의 데이터 등을 출처와 함께 기록하세요." />
           </div>
@@ -402,7 +418,7 @@
         );
         case 5: return (
           <div className="fade-in space-y-10">
-            <SectionHeader title="5~7차시: 수행 및 노력 기록" subTitle="Action Log & Failure Record" btnText="AI 개조식 정리" onBtnClick={handleAiConsult} />
+            <SectionHeader title="5~7차시: 수행 및 노력 기록" subTitle="Action Log & Failure Record" btnText="수행 코칭 요청" onBtnClick={handleAiConsult} />
             <TextAreaField label="진짜 노력 일지 (Action Log)" name="s5_log" value={sessionData.s5_log} onChange={handleInput} height="h-48" placeholder="방문 사이트, 데이터 가공 과정, 참고한 수식 등 구체적인 행위를 날짜별로 기록하세요." />
             <TextAreaField label="시행착오 및 실패 기록 (Error Log)" name="s5_error" value={sessionData.s5_error} onChange={handleInput} height="h-32" bgColor="bg-rose-50/50" textColor="text-rose-900 italic" placeholder="자료가 없어서 실패했거나 가설이 틀렸던 지점 등 실패의 흔적을 솔직히 적으세요." />
             <TextAreaField label="중간 산출물 (Interim Result)" name="s5_result" value={sessionData.s5_result} onChange={handleInput} height="h-32" bgColor="bg-emerald-50/50" textColor="text-emerald-900" placeholder="도출된 표, 그래프의 수치나 핵심 중간 결론을 적으세요." />
@@ -426,7 +442,7 @@
         );
         case 8: return (
           <div className="fade-in space-y-10">
-            <SectionHeader title="8~10차시: 성찰 및 최종 요약" subTitle="Synthesis & Final Portfolio" btnText="AI 개조식 정리" onBtnClick={handleAiConsult} />
+            <SectionHeader title="8~10차시: 성찰 및 최종 요약" subTitle="Synthesis & Final Portfolio" btnText="AI 세특 초안 완성" onBtnClick={handleAiConsult} />
             <TextAreaField label="최종 주장 (Final Claim)" name="s8_claim" value={sessionData.s8_claim} onChange={handleInput} height="h-32" placeholder="탐구 결과를 한 문장으로 정의한다면?" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <TextAreaField label="성장 및 배운 점" name="s8_growth" value={sessionData.s8_growth} onChange={handleInput} height="h-40" placeholder="개념/기술/태도 측면에서의 변화" />
@@ -444,7 +460,7 @@
     };
 
     // =========================================
-    // 5) PrintView (인쇄 전용: A4 안정화 + 페이지 끊김 최소화)
+    // PrintView (딱 1개만)
     // =========================================
     const PrintView = ({ studentInfo, sessionData, issueDate }) => (
       <div className="print-only print-root">
@@ -455,9 +471,9 @@
             <h1 className="print-title">심화 탐구 통합 워크북</h1>
             <div className="print-subtitle">Comprehensive Research Workbook</div>
           </div>
-
+    
           <div style={{ height: "10mm" }} />
-
+    
           <div className="print-card avoid-break" style={{ border: "1px solid #e5e7eb", borderRadius: "10mm", padding: "8mm" }}>
             <div className="print-label">Student</div>
             <div className="print-body" style={{ marginTop: "2mm" }}>
@@ -469,25 +485,25 @@
             </div>
           </div>
         </section>
-
+    
         {/* PAGE 2: 탐구 설계 */}
         <section className="print-page">
           <h2 className="print-h2">01. 탐구 설계 및 배경</h2>
-
+    
           <div className="print-block avoid-break" style={{ border: "1px solid #e5e7eb", borderRadius: "8mm", padding: "7mm", marginBottom: "6mm" }}>
             <div className="print-label">Topic</div>
-            <div className="print-body" style={{ marginTop: "2mm", fontWeight: 800, whiteSpace: "pre-wrap" }}>
+            <div className="print-body" style={{ marginTop: "2mm", fontWeight: 800 }}>
               {sessionData.s1_topic || "입력된 탐구 주제가 없습니다."}
             </div>
           </div>
-
+    
           <div className="print-block avoid-break" style={{ border: "1px solid #e5e7eb", borderRadius: "8mm", padding: "7mm", marginBottom: "6mm" }}>
             <div className="print-label">Core Question</div>
-            <div className="print-body" style={{ marginTop: "2mm", whiteSpace: "pre-wrap" }}>
+            <div className="print-body" style={{ marginTop: "2mm" }}>
               {sessionData.s1_question || "입력된 탐구 질문이 없습니다."}
             </div>
           </div>
-
+    
           <div className="print-block avoid-break" style={{ border: "1px solid #e5e7eb", borderRadius: "8mm", padding: "7mm" }}>
             <div className="print-label">Motivation & Connection</div>
             <div className="print-small" style={{ marginTop: "2mm", whiteSpace: "pre-wrap" }}>
@@ -497,25 +513,25 @@
             </div>
           </div>
         </section>
-
+    
         {/* PAGE 3: 근거/수행 */}
         <section className="print-page">
           <h2 className="print-h2">02. 데이터 분석 및 수행 과정</h2>
-
+    
           <div className="print-block avoid-break" style={{ border: "1px solid #e5e7eb", borderRadius: "8mm", padding: "7mm", marginBottom: "6mm" }}>
             <div className="print-label">Core Evidence</div>
             <div className="print-small" style={{ marginTop: "2mm", whiteSpace: "pre-wrap" }}>
               {sessionData.s4_fact || ""}
             </div>
           </div>
-
+    
           <div className="print-block avoid-break" style={{ border: "1px solid #e5e7eb", borderRadius: "8mm", padding: "7mm", marginBottom: "6mm" }}>
             <div className="print-label">Action Log</div>
             <div className="print-small" style={{ marginTop: "2mm", whiteSpace: "pre-wrap" }}>
               {sessionData.s5_log || ""}
             </div>
           </div>
-
+    
           <div className="print-block avoid-break" style={{ border: "1px solid #e5e7eb", borderRadius: "8mm", padding: "7mm" }}>
             <div className="print-label">Error / Failure</div>
             <div className="print-small" style={{ marginTop: "2mm", whiteSpace: "pre-wrap" }}>
@@ -523,18 +539,18 @@
             </div>
           </div>
         </section>
-
+    
         {/* PAGE 4: 성찰/세특 */}
         <section className="print-page">
           <h2 className="print-h2">03. 최종 성찰 및 요약</h2>
-
+    
           <div className="print-block avoid-break" style={{ border: "1px solid #e5e7eb", borderRadius: "8mm", padding: "7mm", marginBottom: "6mm" }}>
             <div className="print-label">Final Claim</div>
             <div className="print-body" style={{ marginTop: "2mm", whiteSpace: "pre-wrap", fontWeight: 800 }}>
               {sessionData.s8_claim || ""}
             </div>
           </div>
-
+    
           <div className="print-block avoid-break" style={{ border: "1px solid #e5e7eb", borderRadius: "8mm", padding: "7mm", marginBottom: "6mm" }}>
             <div className="print-label">Growth & Next</div>
             <div className="print-small" style={{ marginTop: "2mm", whiteSpace: "pre-wrap" }}>
@@ -543,7 +559,7 @@
               {sessionData.s8_next || ""}
             </div>
           </div>
-
+    
           <div className="print-block avoid-break" style={{ border: "1px solid #111827", borderRadius: "8mm", padding: "7mm" }}>
             <div className="print-label">생활기록부 요약</div>
             <div className="print-body" style={{ marginTop: "2mm", whiteSpace: "pre-wrap" }}>
@@ -554,12 +570,13 @@
       </div>
     );
 
+
     // =========================================
-    // 6) 메인 App
+    // 4. 메인 App
     // =========================================
     const App = () => {
       const [personalCode, setPersonalCode] = useState("");
-      const [activeUserKey, setActiveUserKey] = useState(""); 
+      const [activeUserKey, setActiveUserKey] = useState("");
       const [isLoggedIn, setIsLoggedIn] = useState(false);
       const [serverStatus, setServerStatus] = useState("");
       const [studentInfo, setStudentInfo] = useState({ ...EMPTY_STUDENT });
@@ -574,7 +591,10 @@
       useEffect(() => {
         const timer = setTimeout(() => {
           const loader = document.getElementById("loading-screen");
-          if (loader) { loader.style.opacity = "0"; setTimeout(() => { loader.style.display = "none"; }, 500); }
+          if (loader) {
+            loader.style.opacity = "0";
+            setTimeout(() => { loader.style.display = "none"; }, 500);
+          }
           refreshIcons();
         }, 800);
         return () => clearTimeout(timer);
@@ -582,7 +602,7 @@
 
       useEffect(() => { setTimeout(refreshIcons, 100); }, [activeTab, aiResult, isLoggedIn]);
 
-      // JSONP 로그인 (script 태그 누적 방지)
+      // 로그인(JSONP) - 로드 후 script 제거 + 콜백 정리
       const handleLogin = async () => {
         const code = personalCode.trim();
         if (!code) return setServerStatus("코드를 입력하세요.");
@@ -590,8 +610,12 @@
 
         try {
           const cb = `cb_${Date.now()}`;
+
           const res = await new Promise((resolve, reject) => {
-            window[cb] = (data) => resolve(data);
+            window[cb] = (data) => {
+              resolve(data);
+              try { delete window[cb]; } catch(_) {}
+            };
 
             const script = document.createElement("script");
             script.src = `${CONFIG.SCRIPT_URL}?userKey=${encodeURIComponent(code)}&callback=${cb}&nocache=${Date.now()}`;
@@ -600,18 +624,25 @@
             document.body.appendChild(script);
           });
 
-          // cleanup
-          try { delete window[cb]; } catch(_) {}
-
           if (res.ok) {
             if (res.exists && res.data) {
+              // studentInfo는 studentInfo만
               setStudentInfo({
                 school: res.data.school || "",
                 gradeClass: res.data.gradeClass || "",
                 name: res.data.name || "",
                 major: res.data.major || ""
               });
-              setSessionData(prev => ({ ...EMPTY_SESSION, ...res.data }));
+
+              // sessionData는 EMPTY_SESSION 키만 채움(중요)
+              const nextSession = { ...EMPTY_SESSION };
+              Object.keys(EMPTY_SESSION).forEach((k) => {
+                if (res.data && Object.prototype.hasOwnProperty.call(res.data, k)) {
+                  nextSession[k] = res.data[k] ?? "";
+                }
+              });
+              setSessionData(nextSession);
+
               setServerStatus("✅ 로드 완료");
             } else {
               setServerStatus("🆕 신규 계정");
@@ -621,7 +652,7 @@
             setActiveUserKey(code);
             setIsLoggedIn(true);
           } else {
-            setServerStatus("⚠️ 오류: " + res.error);
+            setServerStatus("⚠️ 오류: " + (res.error || ""));
           }
         } catch (e) {
           setServerStatus("⚠️ 네트워크 오류");
@@ -629,35 +660,36 @@
         }
       };
 
-      // 저장: res.text() 후 JSON.parse
+      // 저장 - Upsert 결과: updated/appended 중 하나가 옴
       const handleSaveAll = async () => {
         if (!isLoggedIn || !activeUserKey) return alert("로그인 필요");
         setServerStatus("저장 중...");
 
         try {
+          // studentInfo를 마지막에 두어 덮어쓰기 안전
+          const payload = { userKey: activeUserKey, ...sessionData, ...studentInfo };
+
           const res = await fetch(CONFIG.SCRIPT_URL, {
             method: "POST",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
-            body: JSON.stringify({ userKey: activeUserKey, ...studentInfo, ...sessionData })
+            body: JSON.stringify(payload)
           });
 
           const text = await res.text();
           let json;
-          try {
-            json = JSON.parse(text);
-          } catch (_) {
-            throw new Error(
-              "서버 응답이 JSON이 아닙니다. 웹 앱 배포/권한(누구나, 실행자=나)을 확인하세요.\n\n응답 일부:\n" +
-              text.slice(0, 300)
-            );
+          try { json = JSON.parse(text); }
+          catch (_) {
+            throw new Error("서버 응답이 JSON이 아닙니다.\n\n응답 일부:\n" + text.slice(0, 300));
           }
 
           if (json.ok) {
-            setServerStatus(`✅ 저장 완료 ${json.timestamp ? "(" + json.timestamp + ")" : ""}`);
+            const act = json.action === "updated" ? "수정" : "신규저장";
+            setServerStatus(`✅ ${act} 완료 (${json.timestamp || ""})`);
             setTimeout(() => setServerStatus(""), 3000);
           } else {
             throw new Error(json.error || "저장 실패");
           }
+
         } catch (e) {
           setServerStatus("⚠️ 저장 실패");
           alert(e.message);
@@ -666,20 +698,13 @@
 
       const handleAskAI = async ({ promptText, systemText }) => {
         if (!promptText || !isLoggedIn) return alert("입력 확인 및 로그인 필요");
-        setAiLoading(true);
-        setAiResult("");
+        setAiLoading(true); setAiResult("");
 
         try {
           const res = await fetch(CONFIG.SCRIPT_URL, {
             method: "POST",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
-            body: JSON.stringify({
-              action: "askGemini",
-              prompt: promptText,
-              system: systemText,
-              userKey: activeUserKey,
-              model: CONFIG.GEMINI_MODEL
-            })
+            body: JSON.stringify({ action: "askGemini", prompt: promptText, system: systemText, userKey: activeUserKey, model: CONFIG.GEMINI_MODEL })
           });
 
           const text = await res.text();
@@ -688,143 +713,152 @@
           catch (_) { throw new Error("AI 응답이 JSON이 아닙니다:\n" + text.slice(0, 300)); }
 
           if (json.ok) setAiResult(json.answer || "응답 없음");
-          else throw new Error(json.error || "AI 오류");
+          else throw new Error(json.error);
 
-        } catch (e) {
+        } catch(e) {
           setAiResult("오류: " + e.message);
         } finally {
           setAiLoading(false);
         }
       };
 
-      // ===== AI 프롬프트(개조식/명확/이해 쉬움) =====
       const handleAiConsult = () => {
+  const handleAiConsult = () => {
         const system = `
-역할: 고등학교 학생용 탐구 코치.
-목표: 학생 입력을 개조식으로 명확하고 이해하기 쉽게 정리/개선.
-
-[출력 형식 고정]
-- 반드시 번호 개조식 (1) (2) (3) ...
-- 각 항목 1~2문장, 한 항목 80자 내외 권장.
-- 불필요한 수식어 삭제, 핵심어 앞배치.
-- 전문용어는 (짧은 뜻) 괄호로 보충(필요할 때만).
-- 원문 의미 유지. 모호하면 구체화(누가/무엇을/어떻게/왜).
-- 과장/허위 금지. 입력에서 벗어난 사실 생성 금지.
-- 내용이 비어있거나 약하면 마지막에 "추가로 적을 것(질문 3개)" 포함.
-
-[톤]
-- 학생이 그대로 붙여넣어도 자연스럽게.
-- 존댓말 사용.
-`.trim();
-
+      역할: 고등학교 학생용 탐구 코치.
+      목표: 학생 입력을 개조식으로 명확하고 이해하기 쉽게 정리/개선.
+      
+      [출력 형식 고정]
+      - 반드시 번호 개조식 (1) (2) (3) ...
+      - 각 항목 1~2문장, 한 항목 80자 내외 권장.
+      - 불필요한 수식어 삭제, 핵심어 앞배치.
+      - 결과물은 학생이 그대로 붙여넣어도 자연스럽게.
+      - 내용이 비어있거나 약하면 마지막에 "추가로 적을 것(질문 3개)" 포함.
+      - 과장/허위 금지. 입력에서 벗어난 사실 생성 금지.
+      `;
+      
         let prompt = "";
-
+      
         switch(activeTab) {
           case 1:
             prompt = `
-[전공] ${studentInfo.major}
-[탐구 주제(가제)] ${sessionData.s1_topic}
-[동기] ${sessionData.s1_motive}
-[핵심 질문(RQ)] ${sessionData.s1_question}
-[교과/전공 연결] ${sessionData.s1_connection}
-
-위 내용을 아래 형식으로 '개조식'으로 다시 써 주세요.
-(1) 주제(한 줄 정의)
-(2) 동기(사건/경험/문제의식 중심 2줄)
-(3) 연구질문(RQ) 1개 + 하위질문 2개
-(4) 교과 개념/전공 개념 연결 3개 키워드
-(5) 탐구 범위/대상/변인(있으면) 3줄
-`.trim();
+      [전공] ${studentInfo.major}
+      [탐구 주제(가제)] ${sessionData.s1_topic}
+      [동기] ${sessionData.s1_motive}
+      [핵심 질문(RQ)] ${sessionData.s1_question}
+      [교과/전공 연결] ${sessionData.s1_connection}
+      
+      위 내용을 아래 형식으로 '개조식'으로 다시 써 주세요.
+      (1) 주제(한 줄 정의)
+      (2) 동기(사건/경험/문제의식 중심 2줄)
+      (3) 연구질문(RQ) 1개 + 하위질문 2개
+      (4) 교과 개념/전공 개념 연결 3개 키워드
+      (5) 탐구 범위/대상/변인(있으면) 3줄
+      - 각 항목은 "[핵심어] 내용" 형태로 시작.
+      - 문장 끝은 "~합니다"로 통일.
+      `;
             break;
-
+      
           case 2:
             prompt = `
-[도서] ${sessionData.s2_book}
-[저자] ${sessionData.s2_author}
-[난이도] ${sessionData.s2_level}
-[집중 챕터/부분] ${sessionData.s2_part}
-[최종 산출물] ${sessionData.s2_goal}
-
-위 계획을 학생용으로 '개조식' 정리해 주세요.
-(1) 이 책을 선택한 이유(전공/주제 연결 2줄)
-(2) 읽을 범위(챕터/파트)와 그 이유 3줄
-(3) 책에서 뽑을 핵심 개념 5개(키워드+한 줄 설명)
-(4) 산출물(보고서/리포트 등) 구성 목차 5개
-(5) 다음 차시에서 해야 할 일 체크리스트 6개
-`.trim();
+      [도서] ${sessionData.s2_book}
+      [저자] ${sessionData.s2_author}
+      [난이도] ${sessionData.s2_level}
+      [집중 챕터/부분] ${sessionData.s2_part}
+      [최종 산출물] ${sessionData.s2_goal}
+      
+      위 계획을 학생용으로 '개조식' 정리해 주세요.
+      (1) 이 책을 선택한 이유(전공/주제 연결 2줄)
+      (2) 읽을 범위(챕터/파트)와 그 이유 3줄
+      (3) 책에서 뽑을 핵심 개념 5개(키워드+한 줄 설명)
+      (4) 산출물(보고서/리포트 등) 구성 목차 5개
+      (5) 다음 차시에서 해야 할 일 체크리스트 6개
+      - 각 항목은 "[핵심어] 내용" 형태로 시작.
+      - 문장 끝은 "~합니다"로 통일.
+      `;
             break;
-
+      
           case 3:
             prompt = `
-[도서로 얻은 지식 정리] ${sessionData.s3_depth}
-[추가 자료(논문/도서) 추적] ${sessionData.s3_trace}
-
-위 내용을 '개조식'으로 재작성해 주세요.
-(1) 핵심 개념 5개(개념: 한 줄 정의)
-(2) 개념 간 연결(원인-결과/비교/구조) 3개
-(3) 교과서 개념과 연결 3개(교과 개념 → 도서 개념)
-(4) 인용/추적해야 할 자료 목록(자료명-왜 필요한지)
-(5) 추가로 적을 것(질문 3개)
-`.trim();
+      [도서로 얻은 지식 정리] ${sessionData.s3_depth}
+      [추가 자료(논문/도서) 추적] ${sessionData.s3_trace}
+      
+      위 내용을 '개조식'으로 재작성해 주세요.
+      (1) 핵심 개념 5개(개념: 한 줄 정의)
+      (2) 개념 간 연결(원인-결과/비교/구조) 3개
+      (3) 교과서 개념과 연결 3개(교과 개념 → 도서 개념)
+      (4) 인용/추적해야 할 자료 목록 정리(형식: 자료명-왜 필요한지)
+      (5) 추가로 적을 것(질문 3개)
+      - 각 항목은 "[핵심어] 내용" 형태로 시작.
+      - 문장 끝은 "~합니다"로 통일.
+      `;
             break;
-
+      
           case 4:
             prompt = `
-[학술 트렌드/키워드] ${sessionData.s4_keyword}
-[핵심 숫자/팩트] ${sessionData.s4_fact}
-
-아래 형식으로 '근거 중심 개조식' 정리해 주세요.
-(1) 핵심 주장 1문장(학생의 말로)
-(2) 근거 데이터 3개: [수치/결과] - [출처] - [의미]
-(3) 해석 3줄: 왜 중요한가/무엇을 말하는가
-(4) 한계/주의점 2개(표본/조건/신뢰도)
-(5) 보고서에 바로 넣을 문장 3개(짧고 명확)
-`.trim();
+      [학술 트렌드/키워드] ${sessionData.s4_keyword}
+      [핵심 숫자/팩트] ${sessionData.s4_fact}
+      
+      아래 형식으로 '근거 중심 개조식' 정리해 주세요.
+      (1) 핵심 주장 1문장(학생의 말로)
+      (2) 근거 데이터 3개: [수치/결과] - [출처] - [의미]
+      (3) 해석 3줄: 왜 중요한가/무엇을 말하는가
+      (4) 한계/주의점 2개(데이터 신뢰/표본/조건 등)
+      (5) 보고서에 바로 넣을 문장 3개(짧고 명확)
+      - 각 항목은 "[핵심어] 내용" 형태로 시작.
+      - 문장 끝은 "~합니다"로 통일.
+      `;
             break;
-
+      
           case 5:
             prompt = `
-[수행/노력 기록] ${sessionData.s5_log}
-[시행착오/실패 기록] ${sessionData.s5_error}
-[중간 산출물] ${sessionData.s5_result}
-
-학생 수행 과정을 '과정 중심 개조식'으로 정리해 주세요.
-(1) 한 일(행동) 타임라인 6줄(날짜/행동/도구)
-(2) 어려움(실패) 3개: 문제-원인-대안
-(3) 중간 결과 3개: 결과-의미-다음 행동
-(4) 역량 키워드 5개 + 근거 1줄씩
-(5) 다음에 개선할 점 3개
-`.trim();
+      [수행/노력 기록] ${sessionData.s5_log}
+      [시행착오/실패 기록] ${sessionData.s5_error}
+      [중간 산출물] ${sessionData.s5_result}
+      
+      학생 수행 과정을 '과정 중심 개조식'으로 정리해 주세요.
+      (1) 한 일(행동) 타임라인 6줄(날짜/행동/도구)
+      (2) 어려움(실패) 3개: 문제-원인-대안
+      (3) 중간 결과 3개: 결과-의미-다음 행동
+      (4) 역량 키워드 5개(예: 자료탐색, 데이터처리 등) + 근거 1줄씩
+      (5) 다음에 개선할 점 3개
+      - 각 항목은 "[핵심어] 내용" 형태로 시작.
+      - 문장 끝은 "~합니다"로 통일.
+      `;
             break;
-
+      
           case 8:
             prompt = `
-[최종 주장] ${sessionData.s8_claim}
-[성장/배운 점] ${sessionData.s8_growth}
-[후속 탐구] ${sessionData.s8_next}
-[세특 요약 초안] ${sessionData.s8_summary}
-
-아래 형식으로 '세특에 바로 쓰기 좋은 개조식'으로 정리/개선해 주세요.
-(1) 탐구 한 줄 요약(주제-방법-결론)
-(2) 과정(무엇을 어떻게 했는지) 5줄
-(3) 근거/데이터 활용 3줄
-(4) 성장(역량/태도 변화) 3줄
-(5) 후속 탐구 2줄
-(6) 최종 세특 문장(500자 이내, 과장 없이, 명확)
-`.trim();
+      [최종 주장] ${sessionData.s8_claim}
+      [성장/배운 점] ${sessionData.s8_growth}
+      [후속 탐구] ${sessionData.s8_next}
+      [세특 요약 초안] ${sessionData.s8_summary}
+      
+      아래 형식으로 '세특에 바로 쓰기 좋은 개조식'으로 정리/개선해 주세요.
+      (1) 탐구 한 줄 요약(주제-방법-결론)
+      (2) 과정(무엇을 어떻게 했는지) 5줄
+      (3) 근거/데이터 활용 3줄
+      (4) 성장(역량/태도 변화) 3줄
+      (5) 후속 탐구 2줄
+      (6) 최종 세특 문장(500자 이내, 과장 없이, 명확)
+      - 각 항목은 "[핵심어] 내용" 형태로 시작.
+      - 문장 끝은 "~합니다"로 통일.
+      `;
             break;
-
+      
           default:
             prompt = `
-현재 탭의 입력 내용을 개조식으로 정리해 주세요.
-(1) 핵심 요약 3줄
-(2) 좋은 점 2줄
-(3) 보완할 점 3줄
-(4) 다음 행동 체크리스트 5개
-`.trim();
+      현재 탭의 입력 내용을 개조식으로 정리해 주세요.
+      (1) 핵심 요약 3줄
+      (2) 좋은 점 2줄
+      (3) 보완할 점 3줄
+      (4) 다음 행동 체크리스트 5개
+      - 각 항목은 "[핵심어] 내용" 형태로 시작.
+      - 문장 끝은 "~합니다"로 통일.
+      `;
         }
-
-        handleAskAI({ promptText: prompt, systemText: system });
+      
+        handleAskAI({ promptText: prompt.trim(), systemText: system.trim() });
       };
 
       const handleLogout = () => {
@@ -842,7 +876,14 @@
 
       return (
         <div className="flex flex-col min-h-screen relative">
-          {!isLoggedIn && <LoginScreen personalCode={personalCode} setPersonalCode={setPersonalCode} handleLogin={handleLogin} serverStatus={serverStatus} />}
+          {!isLoggedIn && (
+            <LoginScreen
+              personalCode={personalCode}
+              setPersonalCode={setPersonalCode}
+              handleLogin={handleLogin}
+              serverStatus={serverStatus}
+            />
+          )}
 
           <div className="no-print flex-grow flex flex-col">
             <Header serverStatus={serverStatus} handleSaveAll={handleSaveAll} handleLogout={handleLogout} />
@@ -854,9 +895,12 @@
                 <div className="bg-white rounded-[56px] border border-slate-200 shadow-sm p-8 md:p-16 min-h-[700px] flex flex-col">
                   <TabContent
                     activeTab={activeTab}
-                    studentInfo={studentInfo} sessionData={sessionData}
-                    handleStudent={handleStudent} handleInput={handleInput}
-                    handleAiConsult={handleAiConsult} aiLoading={aiLoading}
+                    studentInfo={studentInfo}
+                    sessionData={sessionData}
+                    handleStudent={handleStudent}
+                    handleInput={handleInput}
+                    handleAiConsult={handleAiConsult}
+                    aiLoading={aiLoading}
                   />
                 </div>
               </div>
