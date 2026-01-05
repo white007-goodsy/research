@@ -22,8 +22,7 @@
       word-break: keep-all;
     }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
-    
-    /* 로딩 화면 */
+
     #loading-screen {
       position: fixed; inset: 0; background: #0f172a; color: white;
       display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999;
@@ -31,31 +30,28 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* 애니메이션 */
     .fade-in { animation: fadeIn 0.4s ease-out; }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* 인쇄 스타일 */
     @media print {
       .no-print { display: none !important; }
       .print-only { display: block !important; }
       body { background: white !important; margin: 0 !important; }
       .page-break { page-break-after: always; }
-      .page { 
-        border: none !important; 
-        box-shadow: none !important; 
-        margin: 0 !important; 
+      .page {
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 !important;
         width: 100% !important;
-        min-height: 297mm; /* A4 높이 */
+        min-height: 297mm;
         padding: 20mm !important;
       }
     }
     .print-only { display: none; }
 
-    /* 버튼 효과 */
     .btn-ai-glow {
       background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
       transition: all 0.3s ease;
@@ -72,6 +68,7 @@
     <p style="font-weight:900;letter-spacing:2px;">SYSTEM LOADING...</p>
     <p style="font-size:12px;color:#94a3b8;margin-top:6px;">잠시만 기다려 주세요.</p>
   </div>
+
   <div id="root"></div>
 
   <script type="text/babel">
@@ -81,9 +78,8 @@
     // 1. 설정 및 상수 (CONFIG)
     // =========================================
     const CONFIG = {
-      // [중요] 배포된 웹 앱 URL을 여기에 넣으세요
-      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbx0zHvBa2Y93_6JrdtAHMSN9qnvvendmEd9TvN5f1f_R2wAyHNyHWT70BSMrQja6Dw/exec", 
-      GEMINI_MODEL: "gemini-2.5-flash", 
+      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwQATV8MVr3PxGC5pL0xGpyWimm13I81re8QJogGYEe567qem-3IFfc1lNsL91aa_OC/exec",
+      GEMINI_MODEL: "gemini-2.5-flash",
       APP_VERSION: "v6.5-FullRestored",
       LOCAL_PREFIX: "master_serverB_v6_full",
     };
@@ -111,8 +107,6 @@
       { id: 8, title: "8~10차시: 성찰", icon: "graduation-cap", color: "bg-indigo-600" },
     ];
 
-    const makeLocalKey = (userKey, kind) => `${CONFIG.LOCAL_PREFIX}:${CONFIG.APP_VERSION}:${String(userKey).trim()}:${kind}`;
-
     // =========================================
     // 2. 공통 UI 컴포넌트
     // =========================================
@@ -125,7 +119,7 @@
     const InputField = ({ label, name, value, onChange, placeholder, type = "text" }) => (
       <div className="space-y-2">
         {label && <Label>{label}</Label>}
-        <input 
+        <input
           type={type} name={name} value={value} onChange={onChange} placeholder={placeholder}
           className="w-full p-6 rounded-3xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-xl transition-all shadow-sm"
         />
@@ -135,7 +129,7 @@
     const TextAreaField = ({ label, name, value, onChange, placeholder, height = "h-32", bgColor="bg-slate-50", textColor="text-slate-900" }) => (
       <div className="space-y-2">
         {label && <Label>{label}</Label>}
-        <textarea 
+        <textarea
           name={name} value={value} onChange={onChange} placeholder={placeholder}
           className={`w-full ${height} p-6 rounded-[32px] ${bgColor} ${textColor} border-none outline-none font-medium text-base leading-relaxed resize-none shadow-inner`}
         />
@@ -143,29 +137,36 @@
     );
 
     // =========================================
-    // 3. 서브 컴포넌트 정의
+    // 3. 서브 컴포넌트
     // =========================================
-
-    // [로그인 화면]
     const LoginScreen = ({ personalCode, setPersonalCode, handleLogin, serverStatus }) => (
       <div className="fixed inset-0 z-[1000] bg-slate-900 flex items-center justify-center p-6">
         <div className="w-full max-w-md bg-white rounded-[48px] p-12 shadow-2xl fade-in text-center border border-white/20">
-          <div className="mb-8 flex justify-center"><div className="bg-indigo-100 p-4 rounded-3xl text-indigo-600"><i data-lucide="key" className="w-8 h-8"></i></div></div>
+          <div className="mb-8 flex justify-center">
+            <div className="bg-indigo-100 p-4 rounded-3xl text-indigo-600">
+              <i data-lucide="key" className="w-8 h-8"></i>
+            </div>
+          </div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">개인 코드 로그인</h2>
           <p className="text-slate-500 mt-3 font-medium text-sm">기존 저장 데이터를 불러오거나 새로 시작합니다.</p>
-          <input 
-            value={personalCode} onChange={e => setPersonalCode(e.target.value)} 
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
+          <input
+            value={personalCode}
+            onChange={e => setPersonalCode(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleLogin()}
             className="mt-10 w-full p-6 rounded-3xl bg-slate-100 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-center text-2xl tracking-widest"
             placeholder="예: 20101홍길동"
           />
           {serverStatus && <p className="mt-4 text-xs font-bold text-indigo-600 bg-indigo-50 py-2 rounded-full">{serverStatus}</p>}
-          <button onClick={handleLogin} className="mt-8 w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all">시스템 접속</button>
+          <button
+            onClick={handleLogin}
+            className="mt-8 w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all"
+          >
+            시스템 접속
+          </button>
         </div>
       </div>
     );
 
-    // [상단 헤더]
     const Header = ({ serverStatus, handleSaveAll, handleLogout }) => (
       <header className="bg-slate-900 text-white p-5 px-8 flex justify-between items-center sticky top-0 z-50 shadow-2xl">
         <div className="flex items-center gap-4">
@@ -183,26 +184,29 @@
           <button onClick={() => window.print()} className="bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-white/5 active:scale-95 transition-all">
             <i data-lucide="printer" className="w-3.5 h-3.5"></i> 인쇄
           </button>
-          <button onClick={handleLogout} className="bg-rose-600 hover:bg-rose-500 px-5 py-2.5 rounded-2xl text-xs font-black active:scale-95 transition-all">로그아웃</button>
+          <button onClick={handleLogout} className="bg-rose-600 hover:bg-rose-500 px-5 py-2.5 rounded-2xl text-xs font-black active:scale-95 transition-all">
+            로그아웃
+          </button>
         </div>
       </header>
     );
 
-    // [탭 네비게이션]
     const TabNavigation = ({ activeTab, setActiveTab, setAiResult }) => (
       <nav className="bg-white border-b flex gap-1.5 overflow-x-auto p-3 px-6 scrollbar-hide sticky top-[76px] z-40 shadow-sm">
         {TABS.map(tab => (
-          <button key={tab.id} onClick={() => { setActiveTab(tab.id); setAiResult(""); }} 
+          <button
+            key={tab.id}
+            onClick={() => { setActiveTab(tab.id); setAiResult(""); }}
             className={`flex-shrink-0 px-5 py-3 rounded-2xl border font-black text-[11px] flex items-center gap-2.5 transition-all ${
               activeTab === tab.id ? `${tab.color} text-white shadow-xl scale-105 ring-4 ring-indigo-50` : "bg-white text-slate-500 border-slate-100 hover:bg-slate-50"
-            }`}>
+            }`}
+          >
             <i data-lucide={tab.icon} className="w-3.5 h-3.5"></i> {tab.title}
           </button>
         ))}
       </nav>
     );
 
-    // [AI 결과 팝업]
     const AiResultBox = ({ loading, result, onClose }) => (
       (loading || result) ? (
         <div className="mb-10 bg-white border-2 border-indigo-100 rounded-[40px] p-10 shadow-2xl border-l-[16px] border-l-indigo-600 fade-in">
@@ -222,7 +226,9 @@
       ) : null
     );
 
-    // [탭 컨텐츠 - 모든 상세 탭 복구됨]
+    // =========================================
+    // TabContent
+    // =========================================
     const TabContent = ({ activeTab, studentInfo, sessionData, handleStudent, handleInput, handleAiConsult, aiLoading }) => {
       const SectionHeader = ({ title, subTitle, btnText, onBtnClick }) => (
         <div className="flex justify-between items-center border-b pb-8 mb-8">
@@ -305,11 +311,15 @@
               <InputField label="저자" name="s2_author" value={sessionData.s2_author} onChange={handleInput} placeholder="저자명" />
               <div className="space-y-4">
                 <Label>도서 난이도</Label>
-                <select name="s2_level" value={sessionData.s2_level} onChange={handleInput} className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg appearance-none outline-none focus:ring-4 focus:ring-indigo-100"><option>전공 기초(개론)</option><option>전문 학술서</option><option>교양서</option><option>원전/고전</option></select>
+                <select name="s2_level" value={sessionData.s2_level} onChange={handleInput} className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg appearance-none outline-none focus:ring-4 focus:ring-indigo-100">
+                  <option>전공 기초(개론)</option><option>전문 학술서</option><option>교양서</option><option>원전/고전</option>
+                </select>
               </div>
               <div className="space-y-4">
                 <Label>최종 산출물 목표</Label>
-                <select name="s2_goal" value={sessionData.s2_goal} onChange={handleInput} className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg appearance-none outline-none focus:ring-4 focus:ring-indigo-100"><option>학술 보고서</option><option>데이터 리포트</option><option>실험 보고서</option><option>정책 제안서</option></select>
+                <select name="s2_goal" value={sessionData.s2_goal} onChange={handleInput} className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg appearance-none outline-none focus:ring-4 focus:ring-indigo-100">
+                  <option>학술 보고서</option><option>데이터 리포트</option><option>실험 보고서</option><option>정책 제안서</option>
+                </select>
               </div>
             </div>
             <InputField label="집중 탐독 지점 (발췌독 챕터)" name="s2_part" value={sessionData.s2_part} onChange={handleInput} placeholder="예: 제3장 데이터 리터러시의 실제적 적용 사례" />
@@ -403,11 +413,11 @@
       }
     };
 
-    // [인쇄 화면 - 전체 복구]
+    // =========================================
+    // PrintView (딱 1개만)
+    // =========================================
     const PrintView = ({ studentInfo, sessionData, issueDate }) => (
       <div className="print-only bg-white text-slate-900 w-full font-serif">
-        
-        {/* 1페이지: 표지 */}
         <div className="page flex flex-col justify-between p-24 border-[30px] border-double border-slate-900 m-10">
           <div className="mt-20">
             <div className="flex gap-4 items-center mb-10">
@@ -415,7 +425,7 @@
             </div>
             <h1 className="text-8xl font-black tracking-tighter leading-tight mb-6">심화 탐구<br />통합 워크북</h1>
             <p className="text-3xl font-bold text-slate-400 uppercase tracking-[0.4em] mb-40">Comprehensive Research Workbook</p>
-            
+
             <div className="grid grid-cols-2 gap-y-16 gap-x-32 pt-20 border-t-8 border-slate-900">
               <div><p className="text-sm font-black text-slate-400 mb-4 uppercase">Institution</p><p className="text-5xl font-black">{studentInfo.school || "미입력"}</p></div>
               <div><p className="text-sm font-black text-slate-400 mb-4 uppercase">Target Major</p><p className="text-5xl font-black">{studentInfo.major || "미입력"}</p></div>
@@ -428,7 +438,6 @@
 
         <div className="page-break"></div>
 
-        {/* 2페이지: 탐구 질문 및 설계 */}
         <div className="page p-20 space-y-16 min-h-[290mm]">
           <h2 className="text-5xl font-black border-b-8 border-slate-900 pb-6 uppercase tracking-tighter">01. 탐구 설계 및 배경</h2>
           <div className="space-y-12">
@@ -459,7 +468,6 @@
 
         <div className="page-break"></div>
 
-        {/* 3페이지: 데이터 분석 및 수행 */}
         <div className="page p-20 space-y-16 min-h-[290mm]">
           <h2 className="text-5xl font-black border-b-8 border-slate-900 pb-6 uppercase tracking-tighter">02. 데이터 분석 및 수행 과정</h2>
           <div className="space-y-12">
@@ -481,7 +489,6 @@
 
         <div className="page-break"></div>
 
-        {/* 4페이지: 최종 결과 및 세특 */}
         <div className="page p-20 space-y-16 min-h-[290mm]">
           <h2 className="text-5xl font-black border-b-8 border-slate-900 pb-6 uppercase tracking-tighter">03. 최종 성찰 및 리포트 요약</h2>
           <div className="space-y-12">
@@ -513,11 +520,11 @@
     );
 
     // =========================================
-    // 4. 메인 App 컴포넌트
+    // 4. 메인 App
     // =========================================
     const App = () => {
       const [personalCode, setPersonalCode] = useState("");
-      const [activeUserKey, setActiveUserKey] = useState(""); 
+      const [activeUserKey, setActiveUserKey] = useState("");
       const [isLoggedIn, setIsLoggedIn] = useState(false);
       const [serverStatus, setServerStatus] = useState("");
       const [studentInfo, setStudentInfo] = useState({ ...EMPTY_STUDENT });
@@ -532,7 +539,10 @@
       useEffect(() => {
         const timer = setTimeout(() => {
           const loader = document.getElementById("loading-screen");
-          if (loader) { loader.style.opacity = "0"; setTimeout(() => { loader.style.display = "none"; }, 500); }
+          if (loader) {
+            loader.style.opacity = "0";
+            setTimeout(() => { loader.style.display = "none"; }, 500);
+          }
           refreshIcons();
         }, 800);
         return () => clearTimeout(timer);
@@ -540,66 +550,142 @@
 
       useEffect(() => { setTimeout(refreshIcons, 100); }, [activeTab, aiResult, isLoggedIn]);
 
+      // 로그인(JSONP) - 로드 후 script 제거 + 콜백 정리
       const handleLogin = async () => {
         const code = personalCode.trim();
         if (!code) return setServerStatus("코드를 입력하세요.");
         setServerStatus("데이터 확인 중...");
+
         try {
           const cb = `cb_${Date.now()}`;
+
           const res = await new Promise((resolve, reject) => {
-            window[cb] = resolve;
+            window[cb] = (data) => {
+              resolve(data);
+              try { delete window[cb]; } catch(_) {}
+            };
+
             const script = document.createElement("script");
             script.src = `${CONFIG.SCRIPT_URL}?userKey=${encodeURIComponent(code)}&callback=${cb}&nocache=${Date.now()}`;
-            script.onerror = () => reject(new Error("서버 연결 실패"));
+            script.onload = () => { script.remove(); };
+            script.onerror = () => { script.remove(); reject(new Error("서버 연결 실패")); };
             document.body.appendChild(script);
           });
+
           if (res.ok) {
             if (res.exists && res.data) {
-              setStudentInfo({ school: res.data.school || "", gradeClass: res.data.gradeClass || "", name: res.data.name || "", major: res.data.major || "" });
-              setSessionData(prev => ({ ...EMPTY_SESSION, ...res.data }));
+              // studentInfo는 studentInfo만
+              setStudentInfo({
+                school: res.data.school || "",
+                gradeClass: res.data.gradeClass || "",
+                name: res.data.name || "",
+                major: res.data.major || ""
+              });
+
+              // sessionData는 EMPTY_SESSION 키만 채움(중요)
+              const nextSession = { ...EMPTY_SESSION };
+              Object.keys(EMPTY_SESSION).forEach((k) => {
+                if (res.data && Object.prototype.hasOwnProperty.call(res.data, k)) {
+                  nextSession[k] = res.data[k] ?? "";
+                }
+              });
+              setSessionData(nextSession);
+
               setServerStatus("✅ 로드 완료");
             } else {
               setServerStatus("🆕 신규 계정");
-              setStudentInfo({...EMPTY_STUDENT}); setSessionData({...EMPTY_SESSION});
+              setStudentInfo({ ...EMPTY_STUDENT });
+              setSessionData({ ...EMPTY_SESSION });
             }
-            setActiveUserKey(code); setIsLoggedIn(true);
-          } else { setServerStatus("⚠️ 오류: " + res.error); }
-        } catch (e) { setServerStatus("⚠️ 네트워크 오류"); console.error(e); }
+            setActiveUserKey(code);
+            setIsLoggedIn(true);
+          } else {
+            setServerStatus("⚠️ 오류: " + (res.error || ""));
+          }
+        } catch (e) {
+          setServerStatus("⚠️ 네트워크 오류");
+          console.error(e);
+        }
       };
 
+      // 저장 - Upsert 결과: updated/appended 중 하나가 옴
       const handleSaveAll = async () => {
         if (!isLoggedIn || !activeUserKey) return alert("로그인 필요");
         setServerStatus("저장 중...");
+
         try {
+          // studentInfo를 마지막에 두어 덮어쓰기 안전
+          const payload = { userKey: activeUserKey, ...sessionData, ...studentInfo };
+
           const res = await fetch(CONFIG.SCRIPT_URL, {
-            method: "POST", headers: { "Content-Type": "text/plain; charset=utf-8" },
-            body: JSON.stringify({ userKey: activeUserKey, ...studentInfo, ...sessionData })
+            method: "POST",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify(payload)
           });
-          const json = await res.json();
-          if (json.ok) { 
-            const delMsg = json.deleted > 0 ? ` (중복 ${json.deleted}건 정리됨)` : "";
-            setServerStatus(`✅ 저장 완료${delMsg}`); 
-            setTimeout(() => setServerStatus(""), 3000); 
+
+          const text = await res.text();
+          let json;
+          try { json = JSON.parse(text); }
+          catch (_) {
+            throw new Error("서버 응답이 JSON이 아닙니다.\n\n응답 일부:\n" + text.slice(0, 300));
           }
-          else throw new Error(json.error);
-        } catch (e) { setServerStatus("⚠️ 저장 실패"); alert(e.message); }
+
+          if (json.ok) {
+            const act = json.action === "updated" ? "수정" : "신규저장";
+            setServerStatus(`✅ ${act} 완료 (${json.timestamp || ""})`);
+            setTimeout(() => setServerStatus(""), 3000);
+          } else {
+            throw new Error(json.error || "저장 실패");
+          }
+
+        } catch (e) {
+          setServerStatus("⚠️ 저장 실패");
+          alert(e.message);
+        }
       };
 
       const handleAskAI = async ({ promptText, systemText }) => {
         if (!promptText || !isLoggedIn) return alert("입력 확인 및 로그인 필요");
         setAiLoading(true); setAiResult("");
+
         try {
           const res = await fetch(CONFIG.SCRIPT_URL, {
-            method: "POST", headers: { "Content-Type": "text/plain; charset=utf-8" },
+            method: "POST",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({ action: "askGemini", prompt: promptText, system: systemText, userKey: activeUserKey, model: CONFIG.GEMINI_MODEL })
           });
-          const json = await res.json();
-          if (json.ok) setAiResult(json.answer || "응답 없음"); else throw new Error(json.error);
-        } catch(e) { setAiResult("오류: " + e.message); } finally { setAiLoading(false); }
+
+          const text = await res.text();
+          let json;
+          try { json = JSON.parse(text); }
+          catch (_) { throw new Error("AI 응답이 JSON이 아닙니다:\n" + text.slice(0, 300)); }
+
+          if (json.ok) setAiResult(json.answer || "응답 없음");
+          else throw new Error(json.error);
+
+        } catch(e) {
+          setAiResult("오류: " + e.message);
+        } finally {
+          setAiLoading(false);
+        }
       };
 
       const handleAiConsult = () => {
-        const system = "입시 컨설턴트 역할. 핵심 3가지 요약. 명사형 종결.";
+        const system = `
+        역할: 고등학교 학생용 탐구 코치.
+        목표: 학생이 쓴 내용을 '개조식'으로 명확하고 이해하기 쉽게 정리/개선.
+
+        [출력 형식 고정]
+        - 반드시 번호 개조식(1), (2), (3)... 형태.
+        - 각 항목은 한 문장(또는 2문장 이내). 군더더기 금지.
+        - 전문용어는 괄호로 짧게 뜻 추가(필요할 때만).
+        - 원문 의미는 유지하되, 모호하면 구체화(누가/무엇을/어떻게/왜).
+        - 빈칸/정보 부족이면 '추가로 적을 것' 섹션에 질문 3개.
+
+        [톤]
+        - 학생이 바로 따라 쓸 수 있는 쉬운 문장.
+        - 존댓말 사용.
+        `;
         let prompt = "";
         switch(activeTab) {
           case 1: prompt = `[전공:${studentInfo.major}] [주제:${sessionData.s1_topic}] [질문:${sessionData.s1_question}] 학술적 주제/질문 3가지 제안.`; break;
@@ -613,33 +699,52 @@
         handleAskAI({ promptText: prompt, systemText: system });
       };
 
-      const handleLogout = () => { setIsLoggedIn(false); setActiveUserKey(""); setPersonalCode(""); setStudentInfo({...EMPTY_STUDENT}); setSessionData({...EMPTY_SESSION}); setAiResult(""); setServerStatus(""); };
+      const handleLogout = () => {
+        setIsLoggedIn(false);
+        setActiveUserKey("");
+        setPersonalCode("");
+        setStudentInfo({ ...EMPTY_STUDENT });
+        setSessionData({ ...EMPTY_SESSION });
+        setAiResult("");
+        setServerStatus("");
+      };
+
       const handleInput = (e) => setSessionData(prev => ({ ...prev, [e.target.name]: e.target.value }));
       const handleStudent = (e) => setStudentInfo(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
       return (
         <div className="flex flex-col min-h-screen relative">
-          {!isLoggedIn && <LoginScreen personalCode={personalCode} setPersonalCode={setPersonalCode} handleLogin={handleLogin} serverStatus={serverStatus} />}
-          
+          {!isLoggedIn && (
+            <LoginScreen
+              personalCode={personalCode}
+              setPersonalCode={setPersonalCode}
+              handleLogin={handleLogin}
+              serverStatus={serverStatus}
+            />
+          )}
+
           <div className="no-print flex-grow flex flex-col">
             <Header serverStatus={serverStatus} handleSaveAll={handleSaveAll} handleLogout={handleLogout} />
             <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} setAiResult={setAiResult} />
-            
+
             <main className="flex-grow p-4 md:p-10 bg-slate-50">
               <div className="max-w-6xl mx-auto pb-32">
                 <AiResultBox loading={aiLoading} result={aiResult} onClose={() => setAiResult("")} />
                 <div className="bg-white rounded-[56px] border border-slate-200 shadow-sm p-8 md:p-16 min-h-[700px] flex flex-col">
-                  <TabContent 
-                    activeTab={activeTab} 
-                    studentInfo={studentInfo} sessionData={sessionData}
-                    handleStudent={handleStudent} handleInput={handleInput} 
-                    handleAiConsult={handleAiConsult} aiLoading={aiLoading}
+                  <TabContent
+                    activeTab={activeTab}
+                    studentInfo={studentInfo}
+                    sessionData={sessionData}
+                    handleStudent={handleStudent}
+                    handleInput={handleInput}
+                    handleAiConsult={handleAiConsult}
+                    aiLoading={aiLoading}
                   />
                 </div>
               </div>
             </main>
           </div>
-          
+
           <PrintView studentInfo={studentInfo} sessionData={sessionData} issueDate={issueDate} />
         </div>
       );
