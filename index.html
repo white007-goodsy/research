@@ -37,17 +37,14 @@
     }
 
     @media print {
-      /* 1) 용지/여백 */
       @page {
         size: A4;
-        margin: 14mm 14mm 14mm 14mm; /* 필요시 10~18mm 조절 */
+        margin: 14mm 14mm 14mm 14mm;
       }
 
-      /* 2) 화면용 UI 제거 */
       .no-print { display: none !important; }
       .print-only { display: block !important; }
 
-      /* 3) 인쇄 기본 타이포 */
       html, body {
         background: #fff !important;
         -webkit-print-color-adjust: exact;
@@ -56,10 +53,8 @@
         color: #111827 !important;
       }
 
-      /* 4) 페이지 컨테이너 규격: A4 내부 폭에 맞추기 */
       .print-root { width: 100%; }
 
-      /* 5) “페이지” 단위로 강제 분리 */
       .print-page {
         page-break-after: always;
         break-after: page;
@@ -70,7 +65,6 @@
         break-after: auto;
       }
 
-      /* 6) 중간 잘림 방지(매우 중요) */
       .avoid-break,
       .print-card,
       .print-block {
@@ -78,11 +72,9 @@
         page-break-inside: avoid;
       }
 
-      /* 7) 과한 그림자/테두리 제거 */
       .shadow-xl, .shadow-2xl, .shadow-lg, .shadow-sm { box-shadow: none !important; }
       .border-double { border-style: solid !important; }
 
-      /* 8) 폰트 크기 인쇄용으로 다운스케일 */
       .print-title { font-size: 26pt !important; line-height: 1.15 !important; font-weight: 900 !important; }
       .print-subtitle { font-size: 12pt !important; letter-spacing: 0.08em !important; color: #6b7280 !important; }
       .print-h2 { font-size: 16pt !important; font-weight: 900 !important; margin: 0 0 10mm 0 !important; }
@@ -90,7 +82,6 @@
       .print-body { font-size: 11pt !important; line-height: 1.55 !important; }
       .print-small { font-size: 9.5pt !important; line-height: 1.5 !important; color: #374151 !important; }
 
-      /* 9) 표/리스트 깔끔하게 */
       ul, ol { margin: 0; padding-left: 18px; }
       li { margin: 2mm 0; }
     }
@@ -122,7 +113,7 @@
     // 1. 설정 및 상수 (CONFIG)
     // =========================================
     const CONFIG = {
-      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxwuXwRhsb2f9XYd4b-XHTj6xgT865-orVv7IxiddjidgFUw9mINJsGydzhbKlkiVxp/exec",
+      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwU0llzFeQJW29LyStZRU9ohrveZq6sH_xVaF9IgV4Iwd1p8aqBiRjNJCuBNEJEOPcI/exec",
       GEMINI_MODEL: "gemini-2.5-flash",
       APP_VERSION: "v6.5-FullRestored",
       LOCAL_PREFIX: "master_serverB_v6_full",
@@ -253,8 +244,9 @@
       </header>
     );
 
+    // ✅ FIXED: sticky top="[76px] -> sticky top-[76px]
     const TabNavigation = ({ activeTab, setActiveTab, setAiResult }) => (
-      <nav className="bg-white border-b flex gap-1.5 overflow-x-auto p-3 px-6 scrollbar-hide sticky top="[76px] z-40 shadow-sm">
+      <nav className="bg-white border-b flex gap-1.5 overflow-x-auto p-3 px-6 scrollbar-hide sticky top-[76px] z-40 shadow-sm">
         {TABS.map(tab => (
           <button
             key={tab.id}
@@ -517,7 +509,6 @@
     // =========================================
     const PrintView = ({ studentInfo, sessionData, issueDate }) => (
       <div className="print-only print-root">
-        {/* PAGE 1: 표지 */}
         <section className="print-page">
           <div className="avoid-break">
             <div className="print-label">Research Workbook</div>
@@ -539,7 +530,6 @@
           </div>
         </section>
 
-        {/* PAGE 2: 탐구 설계 */}
         <section className="print-page">
           <h2 className="print-h2">01. 탐구 설계 및 배경</h2>
 
@@ -567,7 +557,6 @@
           </div>
         </section>
 
-        {/* PAGE 3: 근거/수행 */}
         <section className="print-page">
           <h2 className="print-h2">02. 데이터 분석 및 수행 과정</h2>
 
@@ -593,7 +582,6 @@
           </div>
         </section>
 
-        {/* PAGE 4: 성찰/세특 */}
         <section className="print-page">
           <h2 className="print-h2">03. 최종 성찰 및 요약</h2>
 
@@ -654,7 +642,7 @@
 
       useEffect(() => { setTimeout(refreshIcons, 100); }, [activeTab, aiResult, isLoggedIn]);
 
-      // 로그인(JSONP) - 로드 후 script 제거 + 콜백 정리
+      // 로그인(JSONP)
       const handleLogin = async () => {
         const code = personalCode.trim();
         if (!code) return setServerStatus("코드를 입력하세요.");
@@ -710,13 +698,12 @@
         }
       };
 
-      // 저장 - Upsert 결과: updated/appended 중 하나가 옴
+      // 저장 - Upsert
       const handleSaveAll = async () => {
         if (!isLoggedIn || !activeUserKey) return alert("로그인 필요");
         setServerStatus("저장 중...");
 
         try {
-          // studentInfo를 마지막에 두어 덮어쓰기 안전
           const payload = { userKey: activeUserKey, ...sessionData, ...studentInfo };
 
           const res = await fetch(CONFIG.SCRIPT_URL, {
@@ -778,7 +765,7 @@
         }
       };
 
-      // ✅ (중요) handleAiConsult 중복선언/중첩 제거한 '정상' 버전
+      // handleAiConsult
       const handleAiConsult = () => {
         const system = `
 역할: 고등학교 학생용 탐구 코치.
