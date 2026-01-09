@@ -97,6 +97,7 @@
     }
   </style>
 </head>
+
 <body>
   <div id="loading-screen">
     <div style="width:40px;height:40px;border:4px solid #6366f1;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px;"></div>
@@ -107,188 +108,968 @@
   <div id="root"></div>
 
   <script type="text/babel">
+    /****************************************************************
+     * 0) 환경/기본 상수
+     ****************************************************************/
     const { useState, useEffect } = React;
 
-    // =========================================
-    // 1. 설정 및 상수 (CONFIG)
-    // =========================================
+    // TODO: 본인 Apps Script 배포 URL로 교체하세요.
     const CONFIG = {
       SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwU0llzFeQJW29LyStZRU9ohrveZq6sH_xVaF9IgV4Iwd1p8aqBiRjNJCuBNEJEOPcI/exec",
-      GEMINI_MODEL: "gemini-2.5-flash",
-      APP_VERSION: "v6.5-FullRestored",
-      LOCAL_PREFIX: "master_serverB_v6_full",
+      GEMINI_MODEL: "gemini-1.5-pro" // 서버에서 사용 중인 모델명에 맞춰 조정
     };
 
-    const EMPTY_STUDENT = { school: "", gradeClass: "", name: "", major: "" };
+    const EMPTY_STUDENT = {
+      school: "",
+      gradeClass: "",
+      name: "",
+      major: ""
+    };
+
     const EMPTY_SESSION = {
-      s1_topic: "", s1_motive: "", s1_question: "", s1_connection: "",
-      s2_book: "", s2_author: "", s2_level: "전공 기초(개론)", s2_part: "", s2_goal: "학술 보고서",
-      s3_depth: "", s3_trace: "",
-      s4_keyword: "", s4_fact: "",
-      s5_log: "", s5_error: "", s5_result: "",
-      s8_claim: "", s8_growth: "", s8_next: "", s8_summary: "",
+      s1_topic: "",
+      s1_motive: "",
+      s1_question: "",
+      s1_connection: "",
+
+      s2_book: "",
+      s2_author: "",
+      s2_level: "전공 기초(개론)",
+      s2_part: "",
+      s2_goal: "학술 보고서",
+
+      s3_depth: "",
+      s3_trace: "",
+
+      s4_keyword: "",
+      s4_fact: "",
+
+      s5_log: "",
+      s5_error: "",
+      s5_result: "",
+
+      s8_claim: "",
+      s8_growth: "",
+      s8_next: "",
+      s8_summary: ""
     };
 
-    const TABS = [
-      { id: 0, title: "정보 입력", icon: "user", color: "bg-slate-900" },
-      { id: 11, title: "자료검색 비법", icon: "search", color: "bg-amber-600" },
-      { id: 1, title: "1차시: 주제&질문", icon: "clipboard-list", color: "bg-indigo-600" },
-      { id: 2, title: "2차시: 계획", icon: "calendar", color: "bg-indigo-600" },
-      { id: 3, title: "3차시: 도서분석", icon: "book-open", color: "bg-indigo-600" },
-      { id: 4, title: "4차시: 논문분석", icon: "file-text", color: "bg-indigo-600" },
-      { id: 13, title: "탐구 방법론", icon: "bar-chart-3", color: "bg-indigo-600" },
-      { id: 5, title: "5~7차시: 수행", icon: "wand-2", color: "bg-indigo-600" },
-      { id: 12, title: "AI 가이드", icon: "shield-check", color: "bg-rose-600" },
-      { id: 8, title: "8~10차시: 성찰", icon: "graduation-cap", color: "bg-indigo-600" },
+    const TAB_ITEMS = [
+      { id: 0,  label: "정보 입력" },
+      { id: 1,  label: "1차시" },
+      { id: 2,  label: "2차시" },
+      { id: 3,  label: "3차시" },
+      { id: 4,  label: "4차시" },
+      { id: 5,  label: "5~7차시" },
+      { id: 8,  label: "8~10차시" },
+      { id: 11, label: "탐구주제 찾기 방법" },
+      { id: 14, label: "참조사이트" },
+      { id: 12, label: "AI 사용 수칙" },
+      { id: 13, label: "방법론 가이드" },
     ];
 
-    // =========================================
-    // 2. 공통 UI 컴포넌트
-    // =========================================
+    /****************************************************************
+     * 1) 공용 UI 컴포넌트
+     ****************************************************************/
     const Label = ({ children }) => (
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block mb-2">
+      <div className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
         {children}
-      </label>
+      </div>
     );
 
-    const InputField = ({ label, name, value, onChange, placeholder, type = "text" }) => (
-      <div className="space-y-2">
-        {label && <Label>{label}</Label>}
+    const InputField = ({ label, name, value, onChange, placeholder }) => (
+      <div className="space-y-4">
+        <Label>{label}</Label>
         <input
-          type={type}
           name={name}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
-          className="w-full p-6 rounded-3xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-xl transition-all shadow-sm"
+          className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg outline-none focus:ring-4 focus:ring-indigo-100 border border-slate-100"
         />
       </div>
     );
 
-    const TextAreaField = ({ label, name, value, onChange, placeholder, height = "h-32", bgColor="bg-slate-50", textColor="text-slate-900" }) => (
-      <div className="space-y-2">
-        {label && <Label>{label}</Label>}
+    const TextAreaField = ({
+      label,
+      name,
+      value,
+      onChange,
+      placeholder,
+      height = "h-40",
+      bgColor = "bg-slate-50",
+      textColor = "text-slate-900"
+    }) => (
+      <div className="space-y-4">
+        <Label>{label}</Label>
         <textarea
           name={name}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
-          className={`w-full ${height} p-6 rounded-[32px] ${bgColor} ${textColor} border-none outline-none font-medium text-base leading-relaxed resize-none shadow-inner`}
+          className={`w-full ${height} ${bgColor} ${textColor} p-6 rounded-3xl font-bold text-base outline-none focus:ring-4 focus:ring-indigo-100 border border-slate-100 resize-none scrollbar-hide`}
         />
       </div>
     );
 
-    // =========================================
-    // 3. 서브 컴포넌트
-    // =========================================
-    const LoginScreen = ({ personalCode, setPersonalCode, handleLogin, serverStatus }) => (
-      <div className="fixed inset-0 z-[1000] bg-slate-900 flex items-center justify-center p-6">
-        <div className="w-full max-w-md bg-white rounded-[48px] p-12 shadow-2xl fade-in text-center border border-white/20">
-          <div className="mb-8 flex justify-center">
-            <div className="bg-indigo-100 p-4 rounded-3xl text-indigo-600">
-              <i data-lucide="key" className="w-8 h-8"></i>
-            </div>
+    const AiResultBox = ({ loading, result, onClose }) => {
+      if (!loading && !result) return null;
+      return (
+        <div className="mb-8 bg-slate-900 text-white rounded-[40px] border border-white/10 shadow-2xl p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <i data-lucide="sparkles" className="w-20 h-20"></i>
           </div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">개인 코드 로그인</h2>
-          <p className="text-slate-500 mt-3 font-medium text-sm">기존 저장 데이터를 불러오거나 새로 시작합니다.</p>
-          <input
-            value={personalCode}
-            onChange={e => setPersonalCode(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleLogin()}
-            className="mt-10 w-full p-6 rounded-3xl bg-slate-100 border-2 border-transparent focus:border-indigo-500 outline-none font-black text-center text-2xl tracking-widest"
-            placeholder="예: 20101홍길동"
-          />
-          {serverStatus && <p className="mt-4 text-xs font-bold text-indigo-600 bg-indigo-50 py-2 rounded-full">{serverStatus}</p>}
-          <button
-            onClick={handleLogin}
-            className="mt-8 w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg shadow-xl active:scale-95 transition-all"
-          >
-            시스템 접속
-          </button>
+
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
+                AI Coach Output
+              </div>
+              <div className="text-lg font-black mt-2">
+                {loading ? "생성 중입니다..." : "결과가 생성되었습니다."}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-white/10 hover:bg-white/15 px-4 py-2 rounded-2xl font-black text-xs border border-white/10"
+            >
+              닫기
+            </button>
+          </div>
+
+          <div className="mt-6 whitespace-pre-wrap text-sm leading-relaxed font-bold text-slate-100">
+            {loading ? "잠시만 기다려 주세요." : result}
+          </div>
         </div>
-      </div>
-    );
+      );
+    };
 
     const Header = ({ serverStatus, handleSaveAll, handleLogout }) => (
-      <header className="bg-slate-900 text-white p-5 px-8 flex justify-between items-center sticky top-0 z-50 shadow-2xl">
-        <div className="flex items-center gap-4">
-          <div className="bg-indigo-500 p-2.5 rounded-2xl shadow-lg">
-            <i data-lucide="zap" className="w-5 h-5"></i>
+      <header className="px-4 md:px-10 py-6 bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-6 flex-wrap">
+          <div className="flex items-center gap-4">
+            <div className="bg-slate-900 text-white rounded-3xl px-5 py-3 shadow-lg">
+              <div className="text-[10px] font-black uppercase tracking-[0.32em] text-slate-400">Workbook</div>
+              <div className="text-sm font-black mt-1">심화 탐구 통합 워크북</div>
+            </div>
+
+            <div className="text-xs font-black text-slate-500">
+              {serverStatus || "상태: 준비됨"}
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-black tracking-tighter leading-none">심화 탐구 통합 워크북</h1>
-            <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.3em] mt-1.5">v6.5 Full Restored</p>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSaveAll}
+              className="btn-ai-glow text-white px-6 py-3 rounded-3xl text-xs font-black shadow-xl active:scale-95 flex items-center gap-2"
+            >
+              <i data-lucide="save" className="w-4 h-4 text-amber-300"></i>
+              전체 저장
+            </button>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-900 px-6 py-3 rounded-3xl text-xs font-black shadow-sm active:scale-95"
+            >
+              로그아웃
+            </button>
           </div>
-        </div>
-        <div className="flex gap-2.5 items-center">
-          {serverStatus && <span className="text-[10px] font-black bg-white/5 border border-white/10 px-4 py-2 rounded-xl">{serverStatus}</span>}
-          <button
-            onClick={handleSaveAll}
-            className="bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg transition-all active:scale-95"
-          >
-            <i data-lucide="save" className="w-3.5 h-3.5"></i> 서버 저장
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 border border-white/5 active:scale-95 transition-all"
-          >
-            <i data-lucide="printer" className="w-3.5 h-3.5"></i> 인쇄
-          </button>
-          <button
-            onClick={handleLogout}
-            className="bg-rose-600 hover:bg-rose-500 px-5 py-2.5 rounded-2xl text-xs font-black active:scale-95 transition-all"
-          >
-            로그아웃
-          </button>
         </div>
       </header>
     );
 
-    // ✅ FIXED: sticky top="[76px] -> sticky top-[76px]
     const TabNavigation = ({ activeTab, setActiveTab, setAiResult }) => (
-      <nav className="bg-white border-b flex gap-1.5 overflow-x-auto p-3 px-6 scrollbar-hide sticky top-[76px] z-40 shadow-sm">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => { setActiveTab(tab.id); setAiResult(""); }}
-            className={`flex-shrink-0 px-5 py-3 rounded-2xl border font-black text-[11px] flex items-center gap-2.5 transition-all ${
-              activeTab === tab.id ? `${tab.color} text-white shadow-xl scale-105 ring-4 ring-indigo-50` : "bg-white text-slate-500 border-slate-100 hover:bg-slate-50"
-            }`}
-          >
-            <i data-lucide={tab.icon} className="w-3.5 h-3.5"></i> {tab.title}
-          </button>
-        ))}
+      <nav className="px-4 md:px-10 py-5 bg-slate-50 border-b border-slate-200">
+        <div className="max-w-6xl mx-auto flex gap-2 overflow-x-auto scrollbar-hide">
+          {TAB_ITEMS.map((t) => {
+            const isOn = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => { setAiResult(""); setActiveTab(t.id); }}
+                className={
+                  "px-5 py-3 rounded-3xl text-xs font-black border transition-all shrink-0 " +
+                  (isOn
+                    ? "bg-slate-900 text-white border-slate-900 shadow-lg"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:text-slate-900")
+                }
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
       </nav>
     );
 
-    const AiResultBox = ({ loading, result, onClose }) => (
-      (loading || result) ? (
-        <div className="mb-10 bg-white border-2 border-indigo-100 rounded-[40px] p-10 shadow-2xl border-l-[16px] border-l-indigo-600 fade-in">
-          <div className="flex items-center justify-between mb-6 pb-6 border-b">
-            <div className="flex items-center gap-3 text-indigo-600 font-black text-lg">
-              <i data-lucide="sparkles" className="w-6 h-6"></i> AI 튜터의 탐구 정밀 진단
+    const LoginScreen = ({ personalCode, setPersonalCode, handleLogin, serverStatus }) => (
+      <div className="fixed inset-0 bg-slate-900/95 flex items-center justify-center z-50">
+        <div className="w-full max-w-xl p-8 md:p-12">
+          <div className="bg-white rounded-[56px] p-10 md:p-14 shadow-2xl border border-white/10">
+            <div className="flex items-center justify-between flex-wrap gap-4 mb-10">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-[0.32em] text-slate-400">Access</div>
+                <div className="text-3xl font-black text-slate-900 tracking-tighter mt-2">개인 코드 로그인</div>
+                <div className="text-xs font-bold text-slate-500 mt-2">코드 기반으로 데이터를 불러오고 저장합니다.</div>
+              </div>
+              <div className="bg-slate-900 text-white rounded-[28px] px-6 py-4 shadow-xl border border-white/5">
+                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Status</div>
+                <div className="text-xs font-black mt-1">{serverStatus || "대기 중"}</div>
+              </div>
             </div>
-            <button onClick={onClose} className="text-slate-300 hover:text-slate-900">
-              <i data-lucide="x" className="w-6 h-6"></i>
-            </button>
+
+            <div className="space-y-4">
+              <Label>Personal Code</Label>
+              <input
+                value={personalCode}
+                onChange={(e) => setPersonalCode(e.target.value)}
+                placeholder="예: ABCD-1234"
+                className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg outline-none focus:ring-4 focus:ring-indigo-100 border border-slate-100"
+              />
+              <button
+                type="button"
+                onClick={handleLogin}
+                className="btn-ai-glow w-full text-white px-8 py-5 rounded-3xl text-sm font-black shadow-2xl active:scale-95 flex items-center justify-center gap-2"
+              >
+                <i data-lucide="log-in" className="w-5 h-5 text-amber-300"></i>
+                로그인
+              </button>
+              <div className="text-[11px] text-slate-500 font-bold mt-2">
+                ※ 서버 URL/권한 설정이 올바르지 않으면 로드/저장이 실패합니다.
+              </div>
+            </div>
           </div>
-          {loading ? (
-            <div className="flex flex-col items-center py-10">
-              <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-6"></div>
-              <p className="text-base font-bold text-slate-500 tracking-tight">학생의 데이터를 학술적으로 분석하여 처방을 구성하고 있습니다...</p>
-            </div>
-          ) : (
-            <div className="text-base font-medium leading-relaxed whitespace-pre-wrap text-slate-800 bg-slate-50 p-8 rounded-3xl border border-slate-100 shadow-inner">
-              {result}
-            </div>
-          )}
         </div>
-      ) : null
+      </div>
     );
 
-    // =========================================
-    // TabContent
-    // =========================================
+    /****************************************************************
+     * 2) (A) 데이터: 4대 전략 모듈
+     ****************************************************************/
+    const STRATEGY_DATA = {
+      papers: {
+        key: "papers",
+        color: "blue",
+        label: "학술적 접근",
+        titleCard: "1. 논문/학술지",
+        descCard: "RISS, DBpia에서 검증된 연구 변형하기",
+        title: "논문 플랫폼별 검색 전략",
+        subTabs: ["dbpia", "riss", "google"],
+        content: {
+          dbpia: {
+            name: "DBpia (디비피아)",
+            badge: "국내 논문",
+            steps: [
+              { title: "1. 주제분류 탭 활용", desc: "메인 상단 [주제분류] 클릭 → 관심 계열(사회과학, 공학 등) 선택합니다." },
+              { title: "2. 이용수 + 1년 필터링", desc: "검색 필터에서 정렬 기준을 [이용수], 기간을 [최근 1년]으로 설정해 트렌드를 파악합니다." },
+              { title: "3. Top 10 훑어보기", desc: "가장 많이 읽힌 논문 10개의 제목을 보고 핵심 키워드를 수집합니다." },
+              { title: "4. 변형하여 적용", desc: "대상(대학생→고등학생), 지역(서울→우리동네) 등 한 요소만 바꿔 내 주제로 변형합니다." },
+            ],
+          },
+          riss: {
+            name: "RISS (학위논문)",
+            badge: "방법론 벤치마킹",
+            steps: [
+              { title: "1. 학위논문 탭 클릭", desc: "키워드 검색 후 [학위논문] 탭을 선택합니다. 석/박사 논문은 연구 과정이 상세해 따라하기 좋습니다." },
+              { title: "2. 국내석사 필터", desc: "난이도가 높은 박사/해외 논문보다 [국내 석사] 논문을 우선 탐색합니다." },
+              { title: "3. 목차 확인", desc: "목차를 보고 설문 문항/실험 설계가 수행 가능한 수준인지 확인합니다." },
+              { title: "4. 제언 찾기", desc: "결론의 [제언]에서 연구자가 남긴 후속 과제를 내 탐구로 가져옵니다." },
+            ],
+          },
+          google: {
+            name: "Google Scholar",
+            badge: "심화/확장",
+            steps: [
+              { title: "1. 2024년 이후 설정", desc: "좌측 사이드바에서 [2024년 이후]로 제한해 최신 트렌드를 파악합니다." },
+              { title: "2. 인용 추적", desc: "[00회 인용됨]을 클릭해 더 최신/심화된 후속 연구를 찾습니다." },
+              { title: "3. Related Articles", desc: "관심 논문 하단의 [관련 학술자료] 버튼을 눌러 유사 주제 논문 묶음을 확인합니다." },
+              { title: "4. Review 논문 검색", desc: "검색어 + “review”로 분야 전체 흐름을 요약한 논문을 찾습니다." },
+            ],
+          },
+        },
+        caseStudy: {
+          before: "RISS 석사 논문: ‘수면 시간이 고등학생의 학습 몰입도에 미치는 영향’",
+          after: "나의 탐구: ‘시험 기간 고카페인 음료 섭취량이 수면의 질과 1교시 집중력에 미치는 상관관계’",
+          points: [
+            "변수 구체화: 수면 시간 → 카페인 섭취",
+            "상황 구체화: 평소 → 시험 기간",
+            "측정 가능성: 집중력 → 자가진단표/조는 횟수",
+          ],
+        },
+      },
+
+      books: {
+        key: "books",
+        color: "amber",
+        label: "도서",
+        titleCard: "2. 도서/독서",
+        descCard: "교과 개념과 심화 도서 연결하기",
+        title: "도서 심화 탐구 전략",
+        subTabs: ["selection", "reading"],
+        content: {
+          selection: {
+            name: "1. 실패 없는 책 고르기",
+            badge: "선정 꿀팁",
+            steps: [
+              { title: "1. 교과서 주석 해킹", desc: "교과서 ‘더 읽어보기’/각주에 언급된 책을 우선 검토합니다." },
+              { title: "2. 대학/학과 추천도서", desc: "희망 대학 학과의 권장 도서 목록 키워드를 검색합니다." },
+              { title: "3. 서문 3분 컷", desc: "도서의 서문을 읽고 집필 의도가 흥미롭지 않으면 과감히 교체합니다." },
+              { title: "4. 과학 커뮤니케이터", desc: "전공서가 어렵다면 해당 분야 전문 기자/커뮤니케이터의 대중서를 먼저 읽습니다." },
+            ],
+          },
+          reading: {
+            name: "2. 시간 절약 발췌독",
+            badge: "읽기 기술",
+            steps: [
+              { title: "1. 색인(Index) 활용", desc: "책 뒤 ‘색인’에서 키워드를 찾아 해당 페이지만 집중적으로 읽습니다." },
+              { title: "2. 챕터 서론/결론 활용", desc: "챕터 첫 문단(문제 제기)·마지막 문단(결론)을 우선 확인하고 필요 시 확장하여 읽습니다." },
+              { title: "3. 목차 마인드맵", desc: "목차로 논리 구조를 먼저 그리고, 내 주제에 필요한 부분을 골라 읽습니다." },
+              { title: "4. 참고문헌 꼬리 물기", desc: "참고문헌의 논문을 실제로 찾아 읽으면 심화 역량 어필에 효과적입니다." },
+            ],
+          },
+        },
+        caseStudy: {
+          before: "통합사회 수업 중 ‘젠트리피케이션’ 개념 학습",
+          after: "도서 ‘골목의 전쟁’ 발췌독 후, 우리 동네 상권의 임대료 상승과 프랜차이즈 비율 변화 조사",
+          points: [
+            "교과 개념 심화",
+            "색인을 통한 키워드 중심 독서",
+            "이론을 현실(우리 동네)에 적용",
+          ],
+        },
+      },
+
+      news: {
+        key: "news",
+        color: "emerald",
+        label: "뉴스/미디어",
+        titleCard: "3. 뉴스/미디어",
+        descCard: "빅카인즈, 과학잡지 트렌드 분석",
+        title: "뉴스/미디어 활용 전략",
+        subTabs: ["sources", "topicizing"],
+        content: {
+          sources: {
+            name: "1. 어디서 찾을까?",
+            badge: "접속 경로",
+            steps: [
+              { title: "빅카인즈 (BigKinds)", desc: "한국언론진흥재단이 운영하는 뉴스 빅데이터 분석 사이트입니다. 키워드 관계도를 확인해 주제 확장에 활용합니다." },
+              { title: "사이언스타임즈 / 동아사이언스", desc: "전문 과학/공학 이슈로 최신 기술 동향을 파악합니다." },
+              { title: "국회도서관 [현안과 과제]", desc: "사회/정책 이슈를 다룹니다. 전문가들이 현재 이슈를 4쪽 내외로 요약한 보고서를 제공합니다." },
+              { title: "TED Talks / 세바시", desc: "영상 매체. 최신 아이디어를 15분 내외로 접할 수 있어 동기 유발에 좋습니다." },
+            ],
+          },
+          topicizing: {
+            name: "2. 주제로 만들기",
+            badge: "연결 기술",
+            steps: [
+              { title: "1. 헤드라인 서핑", desc: "‘논란/위기/급증/신기술’ 키워드를 중심으로 기사 후보를 수집합니다." },
+              { title: "2. Global to Local", desc: "전 지구적 문제(기후변화)를 우리 지역(학교 급식실 탄소발자국) 문제로 축소합니다." },
+              { title: "3. 팩트 체크 & 반론", desc: "기사의 주장이 맞는지 데이터를 찾아 검증하거나, 반대 의견을 탐구 주제로 삼습니다." },
+              { title: "4. 해결책 제안형", desc: "현상 조사에서 끝내지 말고, '우리는 무엇을 할 수 있는가?' 제안으로 결론을 만듭니다." },
+            ],
+          },
+        },
+        caseStudy: {
+          before: "빅카인즈: ‘전동 킥보드 사고 급증’ 키워드 관계도 확인",
+          after: "우리 학교 학생들의 헬멧 착용 실태 조사 및 인식 개선 넛지(Nudge) 디자인 제안",
+          points: [
+            "빅데이터로 이슈 파악",
+            "학교 문제로 축소(Localizing)",
+            "해결책(디자인) 제시",
+          ],
+        },
+      },
+
+      life: {
+        key: "life",
+        color: "violet",
+        label: "생활/데이터",
+        titleCard: "4. 생활 속 불편함",
+        descCard: "일상 관찰과 공공데이터 활용",
+        title: "생활 속 관찰 및 데이터 활용",
+        subTabs: ["observation", "publicdata"],
+        content: {
+          observation: {
+            name: "1. 불편함이 곧 주제",
+            badge: "학교 생활",
+            steps: [
+              { title: "1. ‘왜?’라고 딴지 걸기", desc: "학교 생활 중 불편하거나 비효율적인 것을 찾습니다. (예: 급식 줄은 왜 항상 2학년 쪽이 느릴까?)" },
+              { title: "2. 관찰 일지 쓰기", desc: "일주일간 불편한 현상을 데이터로 기록합니다. (예: 요일별 급식 메뉴와 잔반량 관계)" },
+              { title: "3. 교과 개념 안경 쓰기", desc: "현상을 교과서 개념으로 설명합니다. (대기행렬/환경/화학 등)" },
+              { title: "4. 실험/조사로 증명", desc: "변인을 통제해 실험하거나 설문조사로 가설이 맞는지 확인합니다." },
+            ],
+          },
+          publicdata: {
+            name: "2. 공공데이터 활용",
+            badge: "데이터 분석",
+            steps: [
+              { title: "1. 공공데이터포털 / KOSIS", desc: "설문 없이도 양질의 데이터를 확보할 수 있는 국가 통계·공공데이터를 활용합니다." },
+              { title: "2. 상관관계 찾기", desc: "관련 없어 보이는 두 데이터를 연결해 새로운 가설을 세웁니다. (예: 미세먼지와 도서관 대출)" },
+              { title: "3. 엑셀/파이썬 분석", desc: "CSV를 시각화·분석하면 수행 근거가 됩니다." },
+              { title: "4. 지역 문제 해결", desc: "지역의 민원/통계 데이터를 분석해 가장 시급한 개선점을 제안합니다." },
+            ],
+          },
+        },
+        caseStudy: {
+          before: "관찰: ‘비 오는 날은 지각생이 많은 것 같아.’",
+          after: "기상 데이터와 학교 지각 통계의 상관관계 분석 및 비 오는 날 교통 체증 시뮬레이션",
+          points: [
+            "일상의 호기심",
+            "공공데이터 활용",
+            "통계적 분석 역량 어필",
+          ],
+        },
+      },
+    };
+
+    const SITE_DATA = [
+      {
+        id: "literature",
+        category: "1. 우수 선행연구 및 최신 동향 (논문)",
+        emoji: "📚",
+        color: "blue",
+        desc: "탐구의 시작은 기존 연구 조사입니다. 신뢰할 수 있는 학술 검색 엔진입니다.",
+        sites: [
+          { name: "DBPia", url: "https://www.dbpia.co.kr", tag: "국내논문", desc: "주제별 분류가 잘 되어 있어 탐색이 쉬운 학술지 사이트" },
+          { name: "RISS (학술연구정보)", url: "https://www.riss.kr", tag: "학위논문", desc: "국내 석/박사 학위논문 무료 열람. 연구 방법 벤치마킹용" },
+          { name: "SCIENCEON", url: "https://scienceon.kisti.re.kr", tag: "과학기술", desc: "논문, 특허, 보고서를 한 번에 통합 검색 (KISTI 운영)" },
+          { name: "Google Scholar", url: "https://scholar.google.co.kr", tag: "해외논문", desc: "전 세계 논문 검색 및 인용 횟수 확인" },
+          { name: "KISS (한국학술정보)", url: "https://kiss.kstudy.com", tag: "인문사회", desc: "인문학, 사회과학 분야의 방대한 논문 데이터베이스" },
+          { name: "국회도서관", url: "https://www.nanet.go.kr", tag: "정책/법률", desc: "사회 문제 해결을 위한 정책 자료 및 팩트북 검색" }
+        ]
+      },
+      {
+        id: "data",
+        category: "2. 국가 공공자료 및 통계 (데이터)",
+        emoji: "📊",
+        color: "emerald",
+        desc: "뇌피셜 말고 오피셜. 보고서의 신뢰도를 높여줄 공식 데이터입니다.",
+        sites: [
+          { name: "국가통계포털 (KOSIS)", url: "https://kosis.kr", tag: "공식통계", desc: "대한민국 인구, 물가, 고용 등 모든 공식 통계의 기준" },
+          { name: "공공데이터포털", url: "https://www.data.go.kr", tag: "Raw Data", desc: "날씨, 교통, 환경 등 가공되지 않은 CSV 데이터 제공" },
+          { name: "기상자료개방포털", url: "https://data.kma.go.kr", tag: "날씨/기후", desc: "과거 100년치 날씨, 기후 변화 데이터 다운로드" },
+          { name: "SGIS (통계지리)", url: "https://sgis.kostat.go.kr", tag: "지도/시각화", desc: "지도 위에 인구/상권 통계를 입혀 보여주는 시각화 도구" },
+          { name: "e-나라지표", url: "https://www.index.go.kr", tag: "지표", desc: "복잡한 통계를 보기 쉬운 그래프로 요약 제공" }
+        ]
+      },
+      {
+        id: "science",
+        category: "3. 과학 일반 아이디어 (Inspiration)",
+        emoji: "🔭",
+        color: "amber",
+        desc: "과학적 호기심이 필요할 때 방문해보세요.",
+        sites: [
+          { name: "사이언스타임즈", url: "https://www.sciencetimes.co.kr", tag: "과학뉴스", desc: "최신 과학 기술 동향과 이슈를 다루는 전문 뉴스" },
+          { name: "국립중앙과학관", url: "https://www.science.go.kr", tag: "전람회", desc: "전국과학전람회 수상작 데이터베이스를 통해 수준 파악" },
+          { name: "카오스재단", url: "https://ikaos.org", tag: "고급강연", desc: "기초 과학 분야 석학들의 깊이 있는 강연 영상" },
+          { name: "사이언스올", url: "https://www.scienceall.com", tag: "과학문화", desc: "과학 용어 사전, 카드뉴스 등 흥미로운 콘텐츠" },
+          { name: "동아사이언스", url: "https://www.dongascience.com", tag: "과학매거진", desc: "청소년 눈높이의 최신 과학 기사" }
+        ]
+      },
+      {
+        id: "subject",
+        category: "4. 분야별 심화 탐구 (전공 적합성)",
+        emoji: "🧬",
+        color: "violet",
+        desc: "희망 전공과 관련된 깊이 있는 자료를 찾는 전문 기관입니다.",
+        sites: [
+          { name: "한국생명공학연구원", url: "https://www.kribb.re.kr", tag: "생명과학", desc: "바이오 최신 뉴스 및 연구 성과" },
+          { name: "바이오안전성정보", url: "https://www.biosafety.or.kr", tag: "GMO/안전", desc: "LMO, 유전자 변형 생물체 안전 정보" },
+          { name: "메디칼타임즈", url: "https://www.medicaltimes.com", tag: "의학/보건", desc: "의료계 최신 이슈 및 정책 뉴스" },
+          { name: "SW중심사회", url: "https://www.software.kr", tag: "SW/AI", desc: "소프트웨어 정책, AI 교육 및 산업 동향" },
+          { name: "ITFIND", url: "https://www.itfind.or.kr", tag: "ICT", desc: "정보통신 기술 연구 보고서 및 동향" },
+          { name: "Baekjoon OJ", url: "https://www.acmicpc.net", tag: "코딩", desc: "알고리즘 문제 풀이 및 프로그래밍 연습" },
+          { name: "기계·로봇연구정보", url: "https://www.materic.or.kr", tag: "기계/로봇", desc: "기계 및 로봇 관련 논문, 기술 동향" },
+          { name: "한국물리학회", url: "https://www.kps.or.kr", tag: "물리", desc: "물리학 학술 정보 및 행사" },
+          { name: "한국화학연구원", url: "https://www.krict.re.kr", tag: "화학", desc: "화학 관련 최신 연구 성과" },
+          { name: "알지오매스", url: "https://www.algeomath.kr", tag: "수학", desc: "도형, 그래프를 직접 그려보는 수학 탐구 도구" },
+          { name: "국립국어원", url: "https://www.korean.go.kr", tag: "국어", desc: "표준국어대사전, 어문 규범 자료" },
+          { name: "국토지리정보원", url: "https://www.ngii.go.kr", tag: "지리", desc: "수치지도, 항공사진 등 국토 정보" },
+          { name: "한국영어영문학회", url: "https://www.ellak.or.kr", tag: "영문학", desc: "영어영문학 관련 학술 정보" },
+          { name: "한국문화사회학회", url: "https://socul.or.kr", tag: "사회", desc: "문화 사회학 관련 연구" },
+          { name: "찾기쉬운 생활법령", url: "https://www.easylaw.go.kr", tag: "법/사회", desc: "일상 생활과 관련된 법령을 쉽게 풀이" }
+        ]
+      },
+      {
+        id: "tools",
+        category: "5. 분석 도구 및 유틸리티 (필수)",
+        emoji: "🛠️",
+        color: "rose",
+        desc: "보고서 작성을 도와주는 실전 도구들입니다.",
+        sites: [
+          { name: "카피킬러", url: "https://www.copykiller.com", tag: "표절검사", desc: "보고서 제출 전 표절률 확인 필수 (연구 윤리)" },
+          { name: "부산대 맞춤법 검사기", url: "http://speller.cs.pusan.ac.kr", tag: "교정", desc: "한국어 맞춤법/문법 교정기" },
+          { name: "통그라미", url: "https://tong.kostat.go.kr", tag: "통계툴", desc: "교육용 통계 프로그램. 설문 결과 그래프 제작에 최적" },
+          { name: "빅카인즈", url: "https://www.bigkinds.or.kr", tag: "뉴스분석", desc: "뉴스 키워드 관계도 분석 제공" },
+          { name: "미리캔버스", url: "https://www.miricanvas.com", tag: "디자인", desc: "보고서 표지, 발표 PPT 디자인 제작" },
+          { name: "멘티미터", url: "https://www.mentimeter.com", tag: "설문/투표", desc: "실시간 설문조사 및 워드클라우드 생성 도구" }
+        ]
+      }
+    ];
+
+    const SITE_COLOR = {
+      blue:    { pill: "bg-blue-50 text-blue-700 border-blue-100",   icon: "bg-blue-100 text-blue-600",   corner: "bg-blue-50",   hoverIcon: "group-hover:text-blue-500",   hoverTitle: "group-hover:text-blue-700",   btn: "hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200" },
+      emerald: { pill: "bg-emerald-50 text-emerald-700 border-emerald-100", icon: "bg-emerald-100 text-emerald-600", corner: "bg-emerald-50", hoverIcon: "group-hover:text-emerald-500", hoverTitle: "group-hover:text-emerald-700", btn: "hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200" },
+      amber:   { pill: "bg-amber-50 text-amber-700 border-amber-100", icon: "bg-amber-100 text-amber-600", corner: "bg-amber-50", hoverIcon: "group-hover:text-amber-500", hoverTitle: "group-hover:text-amber-700", btn: "hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200" },
+      violet:  { pill: "bg-violet-50 text-violet-700 border-violet-100", icon: "bg-violet-100 text-violet-600", corner: "bg-violet-50", hoverIcon: "group-hover:text-violet-500", hoverTitle: "group-hover:text-violet-700", btn: "hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200" },
+      rose:    { pill: "bg-rose-50 text-rose-700 border-rose-100",   icon: "bg-rose-100 text-rose-600",   corner: "bg-rose-50",   hoverIcon: "group-hover:text-rose-500",   hoverTitle: "group-hover:text-rose-700",   btn: "hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200" },
+    };
+
+    const ResourceCheatkey = () => {
+      const clamp2 = {
+        display: "-webkit-box",
+        WebkitBoxOrient: "vertical",
+        WebkitLineClamp: 2,
+        overflow: "hidden",
+      };
+
+      const scrollToCategory = (id) => {
+        const el = document.getElementById(`res-${id}`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+
+      const CAT_BTNS = [
+        { id: "literature", label: "📚 논문/학술" },
+        { id: "data",       label: "📊 데이터/통계" },
+        { id: "science",    label: "🔭 과학 일반" },
+        { id: "subject",    label: "🧬 분야별 심화" },
+        { id: "tools",      label: "🛠️ 도구/유틸" },
+      ];
+
+      return (
+        <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8 md:p-10">
+          <div className="mb-8 border-b border-slate-200 pb-6">
+            <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+              🧰 탐구보고서 치트키 (사이트 모음)
+            </h3>
+            <p className="text-slate-500 mt-2 font-bold text-sm">
+              논문 검색부터 데이터 분석, 윤리 검사까지. 즐겨찾기 해두고 필요할 때 꺼내 쓰세요.
+            </p>
+          </div>
+
+          {/* 카테고리 버튼(스크롤 이동) */}
+          <div className="flex flex-wrap gap-2 mb-8 sticky top-24 bg-white/90 backdrop-blur z-20 py-2">
+            {CAT_BTNS.map((b) => {
+              const section = SITE_DATA.find((s) => s.id === b.id);
+              const c = SITE_COLOR[section?.color || "blue"];
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => scrollToCategory(b.id)}
+                  className={
+                    "px-4 py-2 bg-white border border-slate-200 rounded-full text-sm font-black text-slate-600 transition-all shadow-sm " +
+                    c.btn
+                  }
+                >
+                  {b.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 섹션 렌더 */}
+          <div className="space-y-16">
+            {SITE_DATA.map((section) => {
+              const c = SITE_COLOR[section.color] || SITE_COLOR.blue;
+
+              return (
+                <div key={section.id} id={`res-${section.id}`} className="scroll-mt-32">
+                  <div className="flex items-center gap-3 mb-5">
+                    <span className={`${c.icon} p-2 rounded-xl text-xl`}>
+                      {section.emoji}
+                    </span>
+                    <div>
+                      <h4 className="text-lg md:text-xl font-black text-slate-900">
+                        {section.category}
+                      </h4>
+                      <p className="text-xs text-slate-500 font-bold mt-1">
+                        {section.desc}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {section.sites.map((site) => (
+                      <a
+                        key={site.name}
+                        href={site.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="bg-white p-5 rounded-xl border border-slate-200 block group relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-slate-400"
+                      >
+                        <div className={`absolute top-0 right-0 w-16 h-16 ${c.corner} rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150`} />
+
+                        <div className="relative z-10">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${c.pill}`}>
+                              {site.tag}
+                            </span>
+
+                            <svg
+                              className={`w-4 h-4 text-slate-300 transition-colors ${c.hoverIcon}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </div>
+
+                          <div className={`font-black text-slate-800 transition-colors truncate mb-1 ${c.hoverTitle}`} title={site.name}>
+                            {site.name}
+                          </div>
+
+                          <p className="text-xs text-slate-500 leading-relaxed" style={clamp2}>
+                            {site.desc}
+                          </p>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    /****************************************************************
+     * 3) (B) UI: 4대 전략 모듈 컴포넌트 (case 11에서 사용)
+     *    - 수정: "탐구주제 찾기 방법" 탭에서 참조사이트(<ResourceCheatkey />)를 제거했습니다.
+     ****************************************************************/
+    const ResearchStrategyModule = () => {
+      const [strategy, setStrategy] = React.useState("papers");
+      const [subTabs, setSubTabs] = React.useState({
+        papers: "dbpia",
+        books: "selection",
+        news: "sources",
+        life: "observation",
+      });
+
+      const data = STRATEGY_DATA[strategy];
+      const currentSub = subTabs[strategy];
+      const block = data.content?.[currentSub] || null;
+      const steps = block?.steps || [];
+
+      React.useEffect(() => {
+        if (window.lucide) window.lucide.createIcons();
+      }, [strategy, currentSub]);
+
+      const COLOR = {
+        blue: {
+          ring: "ring-blue-500",
+          border: "border-blue-200",
+          hoverBorder: "hover:border-blue-300",
+          stepHoverBorder: "group-hover:border-blue-300",
+          softBg: "bg-blue-50",
+          softText: "text-blue-700",
+          solidBg: "bg-blue-600",
+        },
+        amber: {
+          ring: "ring-amber-500",
+          border: "border-amber-200",
+          hoverBorder: "hover:border-amber-300",
+          stepHoverBorder: "group-hover:border-amber-300",
+          softBg: "bg-amber-50",
+          softText: "text-amber-700",
+          solidBg: "bg-amber-600",
+        },
+        emerald: {
+          ring: "ring-emerald-500",
+          border: "border-emerald-200",
+          hoverBorder: "hover:border-emerald-300",
+          stepHoverBorder: "group-hover:border-emerald-300",
+          softBg: "bg-emerald-50",
+          softText: "text-emerald-700",
+          solidBg: "bg-emerald-600",
+        },
+        violet: {
+          ring: "ring-violet-500",
+          border: "border-violet-200",
+          hoverBorder: "hover:border-violet-300",
+          stepHoverBorder: "group-hover:border-violet-300",
+          softBg: "bg-violet-50",
+          softText: "text-violet-700",
+          solidBg: "bg-violet-600",
+        },
+      };
+
+      const c = COLOR[data.color];
+
+      const select = (next) => {
+        setStrategy(next);
+        const nextData = STRATEGY_DATA[next];
+        setSubTabs((prev) => {
+          const cur = prev[next];
+          const fallback = nextData.subTabs?.[0];
+          return { ...prev, [next]: cur || fallback };
+        });
+      };
+
+      const setSub = (sub) => setSubTabs((prev) => ({ ...prev, [strategy]: sub }));
+
+      const cardBase =
+        "cursor-pointer bg-white p-7 rounded-[32px] border shadow-sm transition-all text-left";
+      const activeCard = "ring-4 ring-indigo-50 scale-[1.02] shadow-xl";
+
+      const StrategyCard = ({ k, icon, color, label, title, desc }) => {
+        const isActive = strategy === k;
+        const cc = COLOR[color];
+
+        return (
+          <button
+            type="button"
+            onClick={() => select(k)}
+            className={
+              `${cardBase} ` +
+              (isActive
+                ? `ring-2 ${cc.ring} ${activeCard} ${cc.border}`
+                : `border-slate-200 ${cc.hoverBorder}`)
+            }
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span
+                  className={`${cc.softBg} ${cc.softText} text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest inline-block mb-3`}
+                >
+                  {label}
+                </span>
+                <div className="text-lg font-black text-slate-900 tracking-tight">
+                  {title}
+                </div>
+                <div className="text-xs text-slate-500 font-bold mt-2 leading-relaxed">
+                  {desc}
+                </div>
+              </div>
+              <div className={`${cc.softBg} p-3 rounded-2xl shrink-0`}>
+                <i data-lucide={icon} className={`w-6 h-6 ${cc.softText}`}></i>
+              </div>
+            </div>
+          </button>
+        );
+      };
+
+      return (
+        <div className="space-y-10 fade-in">
+          {/* Header */}
+          <div className="flex items-center justify-between gap-6 flex-wrap">
+            <div>
+              <h2 className="text-4xl font-black tracking-tighter text-amber-600 flex items-center gap-4">
+                <i data-lucide="search" className="w-10 h-10"></i>
+                탐구 주제 찾기 비법
+              </h2>
+              <p className="text-slate-500 font-bold mt-3 text-sm">
+                논문·책·뉴스·생활 데이터. 4가지 루트로 탐구 주제를 빠르게 구체화합니다.
+              </p>
+              <p className="text-slate-400 font-bold mt-2 text-xs">
+                ※ 참조사이트 모음은 상단의 <b>참조사이트</b> 탭에서 확인합니다.
+              </p>
+            </div>
+
+            <div className="bg-slate-900 text-white rounded-[28px] px-6 py-4 shadow-xl border border-white/5">
+              <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
+                Quick Rule
+              </div>
+              <div className="text-sm font-black mt-1">
+                “찾고 → 변형하고 → 측정 가능하게 만든다”
+              </div>
+            </div>
+          </div>
+
+          {/* 4 Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <StrategyCard
+              k="papers"
+              icon="graduation-cap"
+              color="blue"
+              label={STRATEGY_DATA.papers.label}
+              title={STRATEGY_DATA.papers.titleCard}
+              desc={STRATEGY_DATA.papers.descCard}
+            />
+            <StrategyCard
+              k="books"
+              icon="book-open"
+              color="amber"
+              label={STRATEGY_DATA.books.label}
+              title={STRATEGY_DATA.books.titleCard}
+              desc={STRATEGY_DATA.books.descCard}
+            />
+            <StrategyCard
+              k="news"
+              icon="newspaper"
+              color="emerald"
+              label={STRATEGY_DATA.news.label}
+              title={STRATEGY_DATA.news.titleCard}
+              desc={STRATEGY_DATA.news.descCard}
+            />
+            <StrategyCard
+              k="life"
+              icon="lightbulb"
+              color="violet"
+              label={STRATEGY_DATA.life.label}
+              title={STRATEGY_DATA.life.titleCard}
+              desc={STRATEGY_DATA.life.descCard}
+            />
+          </div>
+
+          {/* Detail Panel */}
+          <div className="bg-white rounded-[40px] shadow-xl border border-slate-100 overflow-hidden">
+            <div className="flex flex-col lg:flex-row">
+              {/* Left */}
+              <div className="flex-1 p-8 md:p-12 border-b lg:border-b-0 lg:border-r border-slate-100">
+                <div className="mb-6">
+                  <span
+                    className={`${c.softBg} ${c.softText} px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest inline-block`}
+                  >
+                    Step-by-Step Guide
+                  </span>
+
+                  <div className="mt-4 flex items-end justify-between flex-wrap gap-4">
+                    <div>
+                      <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter">
+                        {data.title}
+                      </h3>
+                      <p className="text-slate-500 font-bold text-sm mt-2">
+                        {block?.badge ? `${block.badge} · ` : ""}
+                        {block?.name || ""}
+                      </p>
+                    </div>
+
+                    {/* Sub Tabs */}
+                    {data.subTabs?.length ? (
+                      <div className="bg-slate-100 p-1.5 rounded-2xl inline-flex flex-wrap gap-2">
+                        {data.subTabs.map((sub) => {
+                          const isOn = currentSub === sub;
+                          return (
+                            <button
+                              key={sub}
+                              type="button"
+                              onClick={() => setSub(sub)}
+                              className={
+                                "px-4 py-2 rounded-xl text-xs font-black transition-all " +
+                                (isOn
+                                  ? "bg-white text-slate-900 shadow-sm border border-slate-200"
+                                  : "text-slate-500 hover:text-slate-700")
+                              }
+                            >
+                              {data.content[sub].name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Steps */}
+                <div className="relative">
+                  <div className="absolute left-4 top-3 bottom-3 w-px bg-slate-100"></div>
+                  <div className="space-y-7">
+                    {steps.map((step, idx) => {
+                      const isFirst = idx === 0;
+                      return (
+                        <div key={idx} className="relative flex gap-6 items-start group">
+                          <div
+                            className={
+                              "relative z-10 w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shadow-sm transition-colors " +
+                              (isFirst
+                                ? `${c.solidBg} text-white`
+                                : `bg-white border-2 border-slate-200 text-slate-400 ${c.stepHoverBorder}`)
+                            }
+                          >
+                            {idx + 1}
+                          </div>
+                          <div className="flex-1 pt-0.5">
+                            <h4 className="font-black text-slate-900 text-lg tracking-tight">
+                              {step.title}
+                            </h4>
+                            <p className="text-slate-500 text-sm font-medium mt-2 leading-relaxed">
+                              {step.desc}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right */}
+              <div className="lg:w-[40%] bg-slate-50 p-8 md:p-12">
+                <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 p-8 h-full flex flex-col">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className={`${c.softBg} ${c.softText} p-3 rounded-2xl`}>
+                      <i data-lucide="sparkles" className={`w-5 h-5 ${c.softText}`}></i>
+                    </div>
+                    <div>
+                      <div className="text-slate-900 font-black tracking-tight">
+                        실전 변형 예시 (Adaptation)
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-bold mt-1">
+                        ‘그대로’가 아니라 ‘변형’이 핵심입니다.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6 flex-1">
+                    <div className="opacity-70">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                        Before
+                      </div>
+                      <div className="p-4 border-l-4 border-slate-300 bg-slate-50 rounded-r-2xl text-sm text-slate-600 font-medium italic">
+                        {data.caseStudy.before}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center text-slate-300">
+                      <i data-lucide="arrow-down" className="w-6 h-6 animate-bounce"></i>
+                    </div>
+
+                    <div>
+                      <div className={`text-[10px] font-black uppercase tracking-widest mb-2 ${c.softText}`}>
+                        After
+                      </div>
+                      <div className={`p-5 border-l-4 ${c.softBg} rounded-r-2xl text-sm font-black text-slate-900 shadow-sm`}>
+                        {data.caseStudy.after}
+                      </div>
+                      <ul className="mt-5 space-y-2">
+                        {data.caseStudy.points.map((p, i) => (
+                          <li key={i} className="flex items-start gap-2 text-xs text-slate-600 font-bold">
+                            <span className={`${c.softText} mt-0.5`}>●</span>
+                            <span>{p}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 p-5 rounded-[24px] bg-slate-900 text-white border border-white/5 shadow-xl">
+                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
+                      Tip
+                    </div>
+                    <div className="text-sm font-black mt-1">
+                      변형 규칙: 대상·지역·기간·변수 중 1~2개만 바꿉니다.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* (중요) 여기서는 참조사이트 목록을 렌더링하지 않습니다. */}
+        </div>
+      );
+    };
+
+    /****************************************************************
+     * 4) TabContent (case 11: ResearchStrategyModule로 교체)
+     ****************************************************************/
     const TabContent = ({ activeTab, studentInfo, sessionData, handleStudent, handleInput, handleAiConsult, aiLoading }) => {
       const SectionHeader = ({ title, subTitle, btnText, onBtnClick }) => (
         <div className="flex justify-between items-center border-b pb-8 mb-8">
@@ -300,7 +1081,7 @@
             <button
               onClick={onBtnClick}
               disabled={aiLoading}
-              className="btn-ai-glow text-white px-8 py-4 rounded-3xl text-sm font-black flex items-center gap-2 active:scale-95 shadow-2xl"
+              className="btn-ai-glow text-white px-8 py-4 rounded-3xl text-sm font-black flex items-center gap-2 active:scale-95 shadow-2xl disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <i data-lucide="sparkles" className="w-5 h-5 text-amber-300"></i> {btnText}
             </button>
@@ -324,39 +1105,7 @@
           </div>
         );
 
-        case 11: return (
-          <div className="space-y-10 fade-in">
-            <h2 className="text-4xl font-black text-amber-600 flex items-center gap-4">
-              <i data-lucide="search" className="w-10 h-10"></i> 자료 검색 비법 (R-Master)
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="bg-amber-50 p-8 rounded-[40px] border border-amber-100 shadow-sm">
-                <h3 className="font-black text-amber-900 text-lg mb-4">① 학술DB 필터링</h3>
-                <ul className="text-sm text-amber-800 font-bold space-y-3">
-                  <li>- DBpia/RISS 최근 3년 이내 논문</li>
-                  <li>- 'KCI 등재' 논문 우선 확인</li>
-                  <li>- 초록(Abstract)의 결과 위주 확인</li>
-                </ul>
-              </div>
-              <div className="bg-indigo-50 p-8 rounded-[40px] border border-indigo-100 shadow-sm">
-                <h3 className="font-black text-indigo-900 text-lg mb-4">② 고급 검색 문법</h3>
-                <ul className="text-sm text-indigo-800 font-bold space-y-3">
-                  <li>- AND: 두 키워드 모두 포함</li>
-                  <li>- OR: 한 키워드라도 포함</li>
-                  <li>- " ": 정확한 문장 검색</li>
-                </ul>
-              </div>
-              <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl">
-                <h3 className="font-black text-indigo-400 text-lg mb-4">③ 통계 및 원데이터</h3>
-                <ul className="text-sm font-bold space-y-3">
-                  <li>- KOSIS 국가통계포털</li>
-                  <li>- 공공데이터포털(data.go.kr)</li>
-                  <li>- 각 기관 보도자료 통계</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        );
+        case 11: return (<ResearchStrategyModule />);
 
         case 1: return (
           <div className="fade-in space-y-10">
@@ -370,6 +1119,8 @@
           </div>
         );
 
+        case 14: return (<ResourceCheatkey />);
+
         case 2: return (
           <div className="fade-in space-y-10">
             <SectionHeader title="2차시: 도서 및 탐구 계획" btnText="AI 키워드 추출" onBtnClick={handleAiConsult} />
@@ -378,14 +1129,30 @@
               <InputField label="저자" name="s2_author" value={sessionData.s2_author} onChange={handleInput} placeholder="저자명" />
               <div className="space-y-4">
                 <Label>도서 난이도</Label>
-                <select name="s2_level" value={sessionData.s2_level} onChange={handleInput} className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg appearance-none outline-none focus:ring-4 focus:ring-indigo-100">
-                  <option>전공 기초(개론)</option><option>전문 학술서</option><option>교양서</option><option>원전/고전</option>
+                <select
+                  name="s2_level"
+                  value={sessionData.s2_level}
+                  onChange={handleInput}
+                  className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg appearance-none outline-none focus:ring-4 focus:ring-indigo-100 border border-slate-100"
+                >
+                  <option>전공 기초(개론)</option>
+                  <option>전문 학술서</option>
+                  <option>교양서</option>
+                  <option>원전/고전</option>
                 </select>
               </div>
               <div className="space-y-4">
                 <Label>최종 산출물 목표</Label>
-                <select name="s2_goal" value={sessionData.s2_goal} onChange={handleInput} className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg appearance-none outline-none focus:ring-4 focus:ring-indigo-100">
-                  <option>학술 보고서</option><option>데이터 리포트</option><option>실험 보고서</option><option>정책 제안서</option>
+                <select
+                  name="s2_goal"
+                  value={sessionData.s2_goal}
+                  onChange={handleInput}
+                  className="w-full p-6 rounded-3xl bg-slate-50 font-black text-lg appearance-none outline-none focus:ring-4 focus:ring-indigo-100 border border-slate-100"
+                >
+                  <option>학술 보고서</option>
+                  <option>데이터 리포트</option>
+                  <option>실험 보고서</option>
+                  <option>정책 제안서</option>
                 </select>
               </div>
             </div>
@@ -504,9 +1271,9 @@
       }
     };
 
-    // =========================================
-    // PrintView (딱 1개만)
-    // =========================================
+    /****************************************************************
+     * 5) PrintView
+     ****************************************************************/
     const PrintView = ({ studentInfo, sessionData, issueDate }) => (
       <div className="print-only print-root">
         <section className="print-page">
@@ -611,9 +1378,9 @@
       </div>
     );
 
-    // =========================================
-    // 4. 메인 App
-    // =========================================
+    /****************************************************************
+     * 6) 메인 App
+     ****************************************************************/
     const App = () => {
       const [personalCode, setPersonalCode] = useState("");
       const [activeUserKey, setActiveUserKey] = useState("");
