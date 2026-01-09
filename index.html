@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>심화 탐구 통합 워크북 (완전판)</title>
+  <title>심화 탐구 과정 통합 워크북 (완전판)</title>
 
   <!-- 필수 라이브러리 -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -162,10 +162,10 @@
       { id: 4,  label: "4차시" },
       { id: 5,  label: "5~7차시" },
       { id: 8,  label: "8~10차시" },
-      { id: 11, label: "탐구주제 찾기 방법" },
+      { id: 11, label: "탐구 주제 찾기" },
       { id: 14, label: "참조사이트" },
       { id: 12, label: "AI 사용 수칙" },
-      { id: 13, label: "방법론 가이드" },
+      { id: 13, label: "탐구 방법 가이드" },
     ];
 
     /****************************************************************
@@ -252,7 +252,7 @@
           <div className="flex items-center gap-4">
             <div className="bg-slate-900 text-white rounded-3xl px-5 py-3 shadow-lg">
               <div className="text-[10px] font-black uppercase tracking-[0.32em] text-slate-400">Workbook</div>
-              <div className="text-sm font-black mt-1">심화 탐구 통합 워크북</div>
+              <div className="text-sm font-black mt-1">심화 탐구 과정 통합 워크북</div>
             </div>
 
             <div className="text-xs font-black text-slate-500">
@@ -1279,7 +1279,7 @@
         <section className="print-page">
           <div className="avoid-break">
             <div className="print-label">Research Workbook</div>
-            <h1 className="print-title">심화 탐구 통합 워크북</h1>
+            <h1 className="print-title">심화 탐구 과정 통합 워크북</h1>
             <div className="print-subtitle">Comprehensive Research Workbook</div>
           </div>
 
@@ -1369,9 +1369,9 @@
           </div>
 
           <div className="print-block avoid-break" style={{ border: "1px solid #111827", borderRadius: "8mm", padding: "7mm" }}>
-            <div className="print-label">생활기록부 요약</div>
+            <div className="print-label">탐구 보고서 작성</div>
             <div className="print-body" style={{ marginTop: "2mm", whiteSpace: "pre-wrap" }}>
-              {sessionData.s8_summary || "요약본이 생성되지 않았습니다."}
+              {sessionData.s8_summary || "탐구 보고서가 생성되지 않았습니다."}
             </div>
           </div>
         </section>
